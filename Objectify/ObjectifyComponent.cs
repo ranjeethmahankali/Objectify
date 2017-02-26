@@ -3,10 +3,217 @@ using System.Collections.Generic;
 
 using Grasshopper.Kernel;
 using Rhino.Geometry;
+using Grasshopper.Kernel.Parameters;
+using Newtonsoft.Json;
+using Grasshopper.Kernel.Types;
+using Grasshopper.Kernel.Special;
+
+public class geomObject:GH_GeometryGroup
+{
+    //constructors
+    public geomObject(string nameStr, Dictionary<string, IGH_GeometricGoo> geomDictionary)
+    {
+        name = nameStr;
+        data = geomDictionary;
+        updateGroup();
+    }
+
+    public geomObject(string nameStr)
+    {
+        name = nameStr;
+        data =  new Dictionary<string, IGH_GeometricGoo>();
+    }
+    public geomObject()
+    {
+        name = "None";//this is the default value for name
+        data = new Dictionary<string, IGH_GeometricGoo>();//this is the default empty dictionary
+    }
+
+    //object properties
+    public string name;
+    public Dictionary<string, IGH_GeometricGoo> data;
+
+    //functions
+    //this one returns all the geometry as a list
+    public void updateGroup()
+    {
+        //removing all old elements
+        Objects.Clear();
+        foreach(string key in data.Keys)
+        {
+            Objects.Add(data[key]);
+        }
+    }
+
+    //this is for when the user prints the object onto a panel
+    public override string ToString()
+    {
+        string output = name+" object with " + data.Count.ToString() + " members:{";
+        int counter = 0;
+        foreach(string key in data.Keys)
+        {
+            if(counter != 0)
+            {
+                output += ", ";
+            }
+            output += key;
+            counter++;
+        }
+
+        output += "}";
+
+        return output;
+    }
+}
 
 namespace Objectify
-{
-    public class ObjectifyComponent : GH_Component
+{   
+    
+    public class ObjectifyComponent : GH_Component, IGH_VariableParameterComponent
+    {
+        public ObjectifyComponent()
+          : base("Objectify", "Object",
+              "Creates an object out of the inpupt geometry",
+              "Data", "Objectify")
+        {
+            obj = new geomObject(this.NickName);
+        }
+
+        private geomObject obj
+        {
+            get; set;
+        }
+        
+        /// Registers all the input parameters for this component.
+        protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
+        {
+            pManager.AddGeometryParameter("Geometry", "Label_1", "Geometry for this label", GH_ParamAccess.item);
+        }
+        
+        /// Registers all the output parameters for this component.
+        protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
+        {
+            pManager.AddGenericParameter("Object", "O", "Object", GH_ParamAccess.item);
+            //pManager.AddGeometryParameter("Geometry", "G", "This is the geometry in the object", GH_ParamAccess.item);
+            //pManager.AddTextParameter("Debugging Data", "D", "Debug", GH_ParamAccess.item);
+        }
+
+        public bool CanInsertParameter(GH_ParameterSide side, int index)
+        {
+            if (side == GH_ParameterSide.Input)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public bool CanRemoveParameter(GH_ParameterSide side, int index)
+        {
+            if (side == GH_ParameterSide.Input && Params.Input.Count > 1)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+        public IGH_Param CreateParameter(GH_ParameterSide side, int index  )
+        {
+            int paramNum = Params.Input.Count + 1;
+            Param_Geometry param = new Param_Geometry();
+            param.Name = "Geometry for this label";
+            param.NickName = "Label_"+paramNum;
+
+            return param;
+        }
+
+        public bool DestroyParameter(GH_ParameterSide side, int index)
+        {
+            if(side == GH_ParameterSide.Input && Params.Input.Count > 1)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+        public void VariableParameterMaintenance()
+        {
+            //Params.Input[0].
+        }
+
+        /// This is the method that actually does the work.
+        protected override void SolveInstance(IGH_DataAccess DA)
+        {
+            // First, we need to retrieve all data from the input parameters.
+            // We'll start by declaring variables and assigning them starting values.
+            // Then we need to access the input parameters individually. 
+            // When data cannot be extracted from a parameter, we should abort this method.
+            UpdateData(DA);
+            // We should now validate the data and warn the user if invalid data is supplied.
+            if (obj.data.Count == 0)
+            {
+                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "There is no Geometry");
+                //return;
+            }
+
+            // We're set to create the spiral now. To keep the size of the SolveInstance() method small, 
+            // The actual functionality will be in a different method:
+
+            // Finally assign the spiral to the output parameter.
+            DA.SetData(0, obj);
+            //DA.SetDataList(1, obj.getGeometry());
+        }
+
+        private void UpdateData(IGH_DataAccess DA)
+        {
+            Dictionary<string, IGH_GeometricGoo> dataDict = new Dictionary<string, IGH_GeometricGoo>();
+            for (int i = 0; i < Params.Input.Count; i++)
+            {
+                IGH_GeometricGoo geom = null;
+                if (DA.GetData<IGH_GeometricGoo>(i, ref geom))
+                {
+                    dataDict.Add(Params.Input[i].NickName, geom);
+                }
+                //else {}
+            }
+
+            this.obj = new geomObject(this.NickName, dataDict);
+        }
+
+        public override GH_Exposure Exposure
+        {
+            get { return GH_Exposure.primary; }
+        }
+
+        /// <summary>
+        /// Provides an Icon for every component that will be visible in the User Interface.
+        /// Icons need to be 24x24 pixels.
+        /// </summary>
+        protected override System.Drawing.Bitmap Icon
+        {
+            get
+            {
+                // You can add image files to your project resources and access them like this:
+                //return Resources.IconForThisComponent;
+                return null;
+            }
+        }
+
+        public override Guid ComponentGuid
+        {
+            get { return new Guid("{1b99b61b-34e7-4912-955e-54fd914b4200}"); }
+        }
+    }
+
+    //this is the object reader
+    public class ReadObjComponent : GH_Component
     {
         /// <summary>
         /// Each implementation of GH_Component must provide a public 
@@ -15,123 +222,53 @@ namespace Objectify
         /// Subcategory the panel. If you use non-existing tab or panel names, 
         /// new tabs/panels will automatically be created.
         /// </summary>
-        public ObjectifyComponent()
-          : base("Objectify", "ASpi",
-              "Construct an Archimedean, or arithmetic, spiral given its radii and number of turns.",
+        public ReadObjComponent()
+          : base("Read Object", "ReadObj",
+              "Reads an Object",
               "Data", "Objectify")
         {
         }
 
-        /// <summary>
         /// Registers all the input parameters for this component.
-        /// </summary>
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            // Use the pManager object to register your input parameters.
-            // You can often supply default values when creating parameters.
-            // All parameters must have the correct access type. If you want 
-            // to import lists or trees of values, modify the ParamAccess flag.
-            pManager.AddPlaneParameter("Plane", "P", "Base plane for spiral", GH_ParamAccess.item, Plane.WorldXY);
-            pManager.AddNumberParameter("Inner Radius", "R0", "Inner radius for spiral", GH_ParamAccess.item, 1.0);
-            pManager.AddNumberParameter("Outer Radius", "R1", "Outer radius for spiral", GH_ParamAccess.item, 10.0);
-            pManager.AddIntegerParameter("Turns", "T", "Number of turns between radii", GH_ParamAccess.item, 10);
-
-            // If you want to change properties of certain parameters, 
-            // you can use the pManager instance to access them by index:
-            //pManager[0].Optional = true;
+            
+            pManager.AddGenericParameter("Geometry", "Label_1", "Geometry for this label", GH_ParamAccess.item);
         }
 
-        /// <summary>
         /// Registers all the output parameters for this component.
-        /// </summary>
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
-            // Use the pManager object to register your output parameters.
-            // Output parameters do not have default values, but they too must have the correct access type.
-            pManager.AddCurveParameter("Spiral", "S", "Spiral curve", GH_ParamAccess.item);
-
-            // Sometimes you want to hide a specific parameter from the Rhino preview.
-            // You can use the HideParameter() method as a quick way:
-            //pManager.HideParameter(0);
+            pManager.AddGeometryParameter("Geometry", "G", "This is the geometry in the object", GH_ParamAccess.item);
+            //pManager.AddTextParameter("Debugging Data", "D", "Debug", GH_ParamAccess.item);
         }
 
-        /// <summary>
         /// This is the method that actually does the work.
-        /// </summary>
-        /// <param name="DA">The DA object can be used to retrieve data from input parameters and 
-        /// to store data in output parameters.</param>
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            // First, we need to retrieve all data from the input parameters.
-            // We'll start by declaring variables and assigning them starting values.
-            Plane plane = Plane.WorldXY;
-            double radius0 = 0.0;
-            double radius1 = 0.0;
-            int turns = 0;
+            geomObject obj = new geomObject();
+            string key = Params.Input[0].NickName;
 
-            // Then we need to access the input parameters individually. 
-            // When data cannot be extracted from a parameter, we should abort this method.
-            if (!DA.GetData(0, ref plane)) return;
-            if (!DA.GetData(1, ref radius0)) return;
-            if (!DA.GetData(2, ref radius1)) return;
-            if (!DA.GetData(3, ref turns)) return;
-
-            // We should now validate the data and warn the user if invalid data is supplied.
-            if (radius0 < 0.0)
+            if (!DA.GetData(0, ref obj))
             {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Inner radius must be bigger than or equal to zero");
-                return;
-            }
-            if (radius1 <= radius0)
-            {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Outer radius must be bigger than the inner radius");
-                return;
-            }
-            if (turns <= 0)
-            {
-                AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Spiral turn count must be bigger than or equal to one");
                 return;
             }
 
-            // We're set to create the spiral now. To keep the size of the SolveInstance() method small, 
-            // The actual functionality will be in a different method:
-            Curve spiral = CreateSpiral(plane, radius0, radius1, turns);
+            if (obj.data.Count == 0)
+            {
+                //AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Nothing to show");
+                return;
+            }
 
-            // Finally assign the spiral to the output parameter.
-            DA.SetData(0, spiral);
+            if (!obj.data.ContainsKey(key))
+            {
+                return;
+            }
+
+
+            DA.SetData(0, obj.data[key]);
         }
 
-        private Curve CreateSpiral(Plane plane, double r0, double r1, Int32 turns)
-        {
-            Line l0 = new Line(plane.Origin + r0 * plane.XAxis, plane.Origin + r1 * plane.XAxis);
-            Line l1 = new Line(plane.Origin - r0 * plane.XAxis, plane.Origin - r1 * plane.XAxis);
-
-            Point3d[] p0;
-            Point3d[] p1;
-
-            l0.ToNurbsCurve().DivideByCount(turns, true, out p0);
-            l1.ToNurbsCurve().DivideByCount(turns, true, out p1);
-
-            PolyCurve spiral = new PolyCurve();
-
-            for (int i = 0; i < p0.Length - 1; i++)
-            {
-                Arc arc0 = new Arc(p0[i], plane.YAxis, p1[i + 1]);
-                Arc arc1 = new Arc(p1[i + 1], -plane.YAxis, p0[i + 1]);
-
-                spiral.Append(arc0);
-                spiral.Append(arc1);
-            }
-
-            return spiral;
-        }
-
-        /// <summary>
-        /// The Exposure property controls where in the panel a component icon 
-        /// will appear. There are seven possible locations (primary to septenary), 
-        /// each of which can be combined with the GH_Exposure.obscure flag, which 
-        /// ensures the component will only be visible on panel dropdowns.
-        /// </summary>
         public override GH_Exposure Exposure
         {
             get { return GH_Exposure.primary; }
@@ -158,7 +295,8 @@ namespace Objectify
         /// </summary>
         public override Guid ComponentGuid
         {
-            get { return new Guid("{1b99b61b-34e7-4912-955e-54fd914b4200}"); }
+            
+            get { return new Guid("{0f8fad5b-d9cb-469f-a165-70867728950e}"); }
         }
     }
 }
