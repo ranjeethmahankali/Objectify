@@ -77,6 +77,7 @@ namespace Objectify
               "Data", "Objectify")
         {
             obj = new geomObject(this.NickName);
+            Params.ParameterChanged += new GH_ComponentParamServer.ParameterChangedEventHandler(OnParameterChanged);
         }
 
         private geomObject obj
@@ -96,6 +97,12 @@ namespace Objectify
             pManager.AddGenericParameter("Object", "O", "Object", GH_ParamAccess.item);
             //pManager.AddGeometryParameter("Geometry", "G", "This is the geometry in the object", GH_ParamAccess.item);
             //pManager.AddTextParameter("Debugging Data", "D", "Debug", GH_ParamAccess.item);
+        }
+
+        //this function forces GH to recompute the component - bound to change events
+        protected virtual void OnParameterChanged(object sender, GH_ParamServerEventArgs e)
+        {
+            ExpireSolution(true);
         }
 
         public bool CanInsertParameter(GH_ParameterSide side, int index)
@@ -145,7 +152,7 @@ namespace Objectify
         }
         public void VariableParameterMaintenance()
         {
-            //Params.Input[0].
+            //doc.NewSolution(false);
         }
 
         /// This is the method that actually does the work.
