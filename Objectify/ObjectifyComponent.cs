@@ -476,7 +476,8 @@ namespace Objectify
             string key = mainParam.NickName;
             if (!obj.data.ContainsKey(key))
             {
-                mainParam.reset();
+                //mainParam.reset();
+                return;
             }
 
             if(obj.data[key].Objects.Count == 1)
@@ -494,6 +495,7 @@ namespace Objectify
         //this function forces GH to recompute the component - bound to change events
         protected virtual void OnParameterChanged(object sender, GH_ParamServerEventArgs e)
         {
+            mainParam.reset();
             ExpireSolution(true);
         }
 
