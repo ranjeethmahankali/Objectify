@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
 using Grasshopper.Kernel.Parameters;
@@ -10,61 +11,6 @@ using System.Windows.Forms;
 
 namespace Objectify
 {
-    //this is the custom parameter class for the input of Objectify component
-    public class memberParam : GH_Param<IGH_Goo>
-    {
-        //constructors
-        public memberParam(string nickname) :
-            base("Input", nickname, "Input", "Data", "Objectify", GH_ParamAccess.list)
-        {
-            this.options = new List<string>();
-            options.Add("Geometry");
-            options.Add("Number");
-            options.Add("Text");
-
-            curOp = "";
-        }
-        public memberParam(List<string> keys) :
-            base("Input", "Label_1", "Input", "Data", "Objectify", GH_ParamAccess.list)
-        {
-            this.options = keys;
-        }
-
-        //properties - options to show in the context menu
-        public List<string> options { get; }
-        public string curOp;
-
-        //overriding the options shown in the menu
-        public override void AppendAdditionalMenuItems(ToolStripDropDown menu)
-        {
-            //this.Menu_AppendDisconnectWires(menu);
-            for (int i = 0; i < this.options.Count; i++)
-            {
-                if(this.options[i] == this.curOp)
-                {
-                    Menu_AppendItem(menu, this.options[i], optionClickHandler, true, true);
-                }
-                else
-                {
-                    Menu_AppendItem(menu, this.options[i], optionClickHandler);
-                }
-            }
-        }
-        //this is what happens when the option is clicked
-        private void optionClickHandler(Object sender, EventArgs e)
-        {
-            //do sth when clicked
-            this.curOp = sender.ToString();
-            this.ExpireSolution(true);
-        }
-        
-        //this is the unique guid don't change this after the component is published
-        public override Guid ComponentGuid
-        {
-            get { return new Guid("{36c82c59-bc1a-4e70-9215-553181d31ad3}"); }
-        }
-    }
-
     //main component
     public class ObjectifyComponent : GH_Component, IGH_VariableParameterComponent
     {
@@ -80,13 +26,25 @@ namespace Objectify
 
         //this is the geomObject which will hold the data being outputted by this component
         private geomObject obj{get; set;}
-        
+        private List<string> allKeys
+        {
+            get
+            {
+                List<string> keyList = new List<string>();
+                for (int i = 0; i < Params.Input.Count; i++)
+                {
+                    keyList.Add(Params.Input[i].NickName);
+                }
+
+                return keyList;
+            }
+        }
+
         /// Registers all the input parameters for this component.
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
             pManager.AddGenericParameter("Geometry", "Label_1", "Geometry for this label", GH_ParamAccess.list);
             Params.Input[0].DataMapping = GH_DataMapping.Flatten;
-            Params.Input[0].Optional = true;
         }
         
         /// Registers all the output parameters for this component.
@@ -138,7 +96,6 @@ namespace Objectify
             param.NickName = "Label_"+paramNum;
             param.DataMapping = GH_DataMapping.Flatten;
             param.Access = GH_ParamAccess.list;
-            param.Optional = true;
 
             return param;
         }
@@ -167,7 +124,7 @@ namespace Objectify
         {
             UpdateData(DA);
             // We should now validate the data and warn the user if invalid data is supplied.
-            if (obj.data.Count == 0)
+            if (obj.dataCount == 0)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, "No data received");
                 //return;
@@ -182,22 +139,76 @@ namespace Objectify
         private void UpdateData(IGH_DataAccess DA)
         {
             Dictionary<string, GH_GeometryGroup> dataDict = new Dictionary<string, GH_GeometryGroup>();
+            Dictionary<string, List<double>> numDict = new Dictionary<string, List<double>>();
+            Dictionary<string, List<string>> textDict = new Dictionary<string, List<string>>();
             for (int i = 0; i < Params.Input.Count; i++)
             {
-                List<IGH_GeometricGoo> geom = new List<IGH_GeometricGoo>();
-                if (DA.GetDataList<IGH_GeometricGoo>(i, geom))
+                List<Object> obj_in = new List<Object>();//this is for before you decide the type
+                if (!DA.GetDataList<Object>(i, obj_in)) return;
+                //here check if all data are of same type within the list of this param
+                if (!validDatatypes(obj_in))
                 {
-                    GH_GeometryGroup grp = new GH_GeometryGroup();
-                    for (int j = 0; j < geom.Count; j++)
-                    {
-                        grp.Objects.Add(geom[j]);
-                    }
-                    dataDict.Add(Params.Input[i].NickName, grp);
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "All data in an object member should be of the same type!");
+                    return;
                 }
-                //else {}
+                //now we check that all the member names are unique
+                if (allKeys.Distinct().Count() != allKeys.Count)
+                {
+                    AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Member names cannot be repeated !");
+                    return;
+                }
+
+                List<double> nums = new List<double>();
+                List<string> text = new List<string>();
+                //Rhino.RhinoApp.WriteLine(obj_in[0].GetType().ToString());
+                if (obj_in[0].GetType() == typeof(GH_Number))
+                {
+                    //Rhino.RhinoApp.WriteLine("Number !");
+                    DA.GetDataList<double>(i, nums);
+                    numDict.Add(Params.Input[i].NickName, nums);
+                }
+                else if (obj_in[0].GetType() == typeof(GH_String))
+                {
+                    //Rhino.RhinoApp.WriteLine("Text !");
+                    DA.GetDataList<string>(i, text);
+                    textDict.Add(Params.Input[i].NickName, text);
+                }
+                else
+                {
+                    List<IGH_GeometricGoo> geom = new List<IGH_GeometricGoo>();
+                    if (DA.GetDataList<IGH_GeometricGoo>(i, geom))
+                    {
+                        GH_GeometryGroup grp = new GH_GeometryGroup();
+                        for (int j = 0; j < geom.Count; j++)
+                        {
+                            grp.Objects.Add(geom[j]);
+                        }
+                        dataDict.Add(Params.Input[i].NickName, grp);
+                    }else
+                    {
+                        //if we get here then there is something wrong with the data
+                        AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Something is not right with the data you provide");
+                    }
+                }
             }
 
             this.obj = new geomObject(this.NickName, dataDict);
+            this.obj.number = numDict;
+            this.obj.text = textDict;
+            //Rhino.RhinoApp.WriteLine(this.obj.dataCount.ToString());
+        }
+
+        //checks if the data in the list is all of the same type
+        private bool validDatatypes(List<Object> objList)
+        {
+            for (int i = 1; i < objList.Count; i++)
+            {
+                if(objList[i].GetType() != objList[0].GetType())
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         //I have no idea what this is for - came with the template - find out later
@@ -271,7 +282,17 @@ namespace Objectify
             {
                 this.options.Add(key);
             }
-            if(this.NickName == "")
+            foreach (string key in obj.number.Keys)
+            {
+                this.options.Add(key);
+            }
+            foreach (string key in obj.text.Keys)
+            {
+                this.options.Add(key);
+            }
+
+            //if nickname not set then empty string
+            if (this.NickName == "")
             {
                 this.NickName = options[0];
             }
@@ -330,7 +351,7 @@ namespace Objectify
             }
 
             geomObject obj = objGoo.Value;
-            if (obj.data.Count == 0)
+            if (obj.dataCount == 0)
             {
                 //AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Nothing to show");
                 mainParam.reset();
@@ -339,21 +360,44 @@ namespace Objectify
 
             mainParam.update(obj);
             string key = mainParam.NickName;
-            if (!obj.data.ContainsKey(key))
+            if (obj.data.ContainsKey(key))
             {
-                //mainParam.reset();
-                return;
+                if (obj.data[key].Objects.Count == 1)
+                {
+                    Params.Output[0].Access = GH_ParamAccess.item;
+                    DA.SetData(0, obj.data[key].Objects[0]);
+                }
+                else
+                {
+                    Params.Output[0].Access = GH_ParamAccess.list;
+                    DA.SetDataList(0, obj.data[key].Objects);
+                }
             }
-
-            if(obj.data[key].Objects.Count == 1)
+            else if (obj.number.ContainsKey(key))
             {
-                Params.Output[0].Access = GH_ParamAccess.item;
-                DA.SetData(0, obj.data[key].Objects[0]);
+                if (obj.number[key].Count == 1)
+                {
+                    Params.Output[0].Access = GH_ParamAccess.item;
+                    DA.SetData(0, obj.number[key][0]);
+                }
+                else
+                {
+                    Params.Output[0].Access = GH_ParamAccess.list;
+                    DA.SetDataList(0, obj.number[key]);
+                }
             }
-            else
+            else if (obj.text.ContainsKey(key))
             {
-                Params.Output[0].Access = GH_ParamAccess.list;
-                DA.SetDataList(0, obj.data[key].Objects);
+                if (obj.text[key].Count == 1)
+                {
+                    Params.Output[0].Access = GH_ParamAccess.item;
+                    DA.SetData(0, obj.text[key][0]);
+                }
+                else
+                {
+                    Params.Output[0].Access = GH_ParamAccess.list;
+                    DA.SetDataList(0, obj.text[key]);
+                }
             }
         }
 

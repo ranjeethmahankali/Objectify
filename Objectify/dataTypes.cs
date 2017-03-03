@@ -39,6 +39,7 @@ public class geomObject
     public Dictionary<string, GH_GeometryGroup> data;
     public Dictionary<string, List<double>> number;
     public Dictionary<string, List<string>> text;
+    public int dataCount { get { return (this.data.Count + this.number.Count + this.text.Count); } }
 
     //this function gets all the geometry as a group (nested if the members are already groups themselves))
     public GH_GeometryGroup getGeometryGroup()
