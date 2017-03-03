@@ -10,6 +10,61 @@ using System.Windows.Forms;
 
 namespace Objectify
 {
+    //this is the custom parameter class for the input of Objectify component
+    public class memberParam : GH_Param<IGH_Goo>
+    {
+        //constructors
+        public memberParam(string nickname) :
+            base("Input", nickname, "Input", "Data", "Objectify", GH_ParamAccess.list)
+        {
+            this.options = new List<string>();
+            options.Add("Geometry");
+            options.Add("Number");
+            options.Add("Text");
+
+            curOp = "";
+        }
+        public memberParam(List<string> keys) :
+            base("Input", "Label_1", "Input", "Data", "Objectify", GH_ParamAccess.list)
+        {
+            this.options = keys;
+        }
+
+        //properties - options to show in the context menu
+        public List<string> options { get; }
+        public string curOp;
+
+        //overriding the options shown in the menu
+        public override void AppendAdditionalMenuItems(ToolStripDropDown menu)
+        {
+            //this.Menu_AppendDisconnectWires(menu);
+            for (int i = 0; i < this.options.Count; i++)
+            {
+                if(this.options[i] == this.curOp)
+                {
+                    Menu_AppendItem(menu, this.options[i], optionClickHandler, true, true);
+                }
+                else
+                {
+                    Menu_AppendItem(menu, this.options[i], optionClickHandler);
+                }
+            }
+        }
+        //this is what happens when the option is clicked
+        private void optionClickHandler(Object sender, EventArgs e)
+        {
+            //do sth when clicked
+            this.curOp = sender.ToString();
+            this.ExpireSolution(true);
+        }
+        
+        //this is the unique guid don't change this after the component is published
+        public override Guid ComponentGuid
+        {
+            get { return new Guid("{36c82c59-bc1a-4e70-9215-553181d31ad3}"); }
+        }
+    }
+
     //main component
     public class ObjectifyComponent : GH_Component, IGH_VariableParameterComponent
     {
