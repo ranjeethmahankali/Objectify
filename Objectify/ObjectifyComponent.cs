@@ -292,16 +292,16 @@ namespace Objectify
             }
 
             //if nickname not set then empty string
-            if (this.NickName == "")
+            if (this.NickName == "" || (!this.options.Contains(this.NickName)))
             {
                 this.NickName = options[0];
             }
         }
         //this resets the parameter - clears the context menu options and sets the current member name to empty string
-        public void reset()
+        public void reset(geomObjGoo goo)
         {
-            this.options.Clear();
-            this.NickName = "";
+            geomObject obj = goo.Value;
+            this.update(obj);
             this.OnDisplayExpired(true);
         }
         //this is the unique guid don't change this after the component is published
@@ -346,7 +346,7 @@ namespace Objectify
 
             if (!DA.GetData(0, ref objGoo))
             {
-                mainParam.reset();
+                mainParam.reset(objGoo);
                 return;
             }
 
@@ -354,7 +354,7 @@ namespace Objectify
             if (obj.dataCount == 0)
             {
                 //AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Nothing to show");
-                mainParam.reset();
+                mainParam.reset(objGoo);
                 return;
             }
 
@@ -404,7 +404,7 @@ namespace Objectify
         // this function forces GH to recompute the component - bound to change events
         protected virtual void OnParameterChanged(object sender, GH_ParamServerEventArgs e)
         {
-            mainParam.reset();
+            //mainParam.reset();
             ExpireSolution(true);
         }
 
