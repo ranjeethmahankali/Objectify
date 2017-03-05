@@ -6,7 +6,6 @@ using Grasshopper.Kernel.Parameters;
 //using Newtonsoft.Json;
 using Grasshopper.Kernel.Types;
 //using Grasshopper.Kernel.Special;
-using System.Windows.Forms;
 
 //my custom datatype
 public class geomObject
@@ -19,6 +18,8 @@ public class geomObject
         number = new Dictionary<string, List<double>>();
         text = new Dictionary<string, List<string>>();
         vector = new Dictionary<string, List<GH_Vector>>();
+        Visibility = new Dictionary<string, bool>();
+        Bakability = new Dictionary<string, bool>();
     }
     public geomObject(string nameStr)
     {
@@ -27,6 +28,8 @@ public class geomObject
         number = new Dictionary<string, List<double>>();
         text = new Dictionary<string, List<string>>();
         vector = new Dictionary<string, List<GH_Vector>>();
+        Visibility = new Dictionary<string, bool>();
+        Bakability = new Dictionary<string, bool>();
     }
     public geomObject()
     {
@@ -35,6 +38,8 @@ public class geomObject
         number = new Dictionary<string, List<double>>();
         text = new Dictionary<string, List<string>>();
         vector = new Dictionary<string, List<GH_Vector>>();
+        Visibility = new Dictionary<string, bool>();
+        Bakability = new Dictionary<string, bool>();
     }
 
     //object properties
@@ -44,13 +49,22 @@ public class geomObject
     public Dictionary<string, List<string>> text;
     public Dictionary<string, List<GH_Vector>> vector;
     public int dataCount { get { return (this.data.Count + this.number.Count + this.text.Count); } }
+    public Dictionary<string, bool> Visibility;
+    public Dictionary<string, bool> Bakability;
 
     //this function gets all the geometry as a group (nested if the members are already groups themselves))
-    public GH_GeometryGroup getGeometryGroup()
+    public GH_GeometryGroup getGeometryGroup(string set = "all")
     {
+        //if set is visible then only visible geometry is included
+        //if set is bakable then only bakable geometry is included
+        //if set is both then both visible and bakable are included
+        //if set is not provided, the default value will include all geometry
         GH_GeometryGroup geoGrp = new GH_GeometryGroup();
         foreach (string key in data.Keys)
         {
+            if (set == "visible" && (!Visibility[key])) { continue; }
+            if (set == "bakable" && (!Bakability[key])) { continue; }
+            if (set == "both" && (!Visibility[key]) && (!Bakability[key])) { continue;}
             GH_GeometryGroup subGrp = new GH_GeometryGroup();
             for (int i = 0; i < data[key].Objects.Count; i++)
             {
@@ -105,9 +119,6 @@ public class geomObject
     public geomObject Transform(Transform xform)
     {
         geomObject xObj = new geomObject(this.name);
-        xObj.number = this.number;
-        xObj.text = this.text;
-        xObj.vector = this.vector;
         foreach (string key in data.Keys)
         {
             GH_GeometryGroup xGeom = (GH_GeometryGroup)data[key].Transform(xform);
@@ -120,9 +131,6 @@ public class geomObject
     public geomObject Morph(SpaceMorph morph)
     {
         geomObject mObj = new geomObject(this.name);
-        mObj.number = this.number;
-        mObj.text = this.text;
-        mObj.vector = this.vector;
         foreach (string key in data.Keys)
         {
             GH_GeometryGroup mGeom = (GH_GeometryGroup)data[key].Morph(morph);
@@ -135,9 +143,6 @@ public class geomObject
     public geomObject DuplicateGeometry()
     {
         geomObject dObj = new geomObject(this.name);
-        dObj.number = this.number;
-        dObj.text = this.text;
-        dObj.vector = this.vector;
         foreach (string key in data.Keys)
         {
             GH_GeometryGroup dGeom = (GH_GeometryGroup)data[key].DuplicateGeometry();
