@@ -18,6 +18,7 @@ public class geomObject
         data = geomDictionary;
         number = new Dictionary<string, List<double>>();
         text = new Dictionary<string, List<string>>();
+        vector = new Dictionary<string, List<GH_Vector>>();
     }
     public geomObject(string nameStr)
     {
@@ -25,6 +26,7 @@ public class geomObject
         data = new Dictionary<string, GH_GeometryGroup>();
         number = new Dictionary<string, List<double>>();
         text = new Dictionary<string, List<string>>();
+        vector = new Dictionary<string, List<GH_Vector>>();
     }
     public geomObject()
     {
@@ -32,6 +34,7 @@ public class geomObject
         data = new Dictionary<string, GH_GeometryGroup>();//this is the default empty dictionary
         number = new Dictionary<string, List<double>>();
         text = new Dictionary<string, List<string>>();
+        vector = new Dictionary<string, List<GH_Vector>>();
     }
 
     //object properties
@@ -39,6 +42,7 @@ public class geomObject
     public Dictionary<string, GH_GeometryGroup> data;
     public Dictionary<string, List<double>> number;
     public Dictionary<string, List<string>> text;
+    public Dictionary<string, List<GH_Vector>> vector;
     public int dataCount { get { return (this.data.Count + this.number.Count + this.text.Count); } }
 
     //this function gets all the geometry as a group (nested if the members are already groups themselves))
@@ -83,6 +87,13 @@ public class geomObject
             output += key;
             counter++;
         }
+        //all the vectors
+        foreach(string key in vector.Keys)
+        {
+            if (counter != 0) { output += ", "; }
+            output += key;
+            counter++;
+        }
 
         output += "}";
 
@@ -96,6 +107,7 @@ public class geomObject
         geomObject xObj = new geomObject(this.name);
         xObj.number = this.number;
         xObj.text = this.text;
+        xObj.vector = this.vector;
         foreach (string key in data.Keys)
         {
             GH_GeometryGroup xGeom = (GH_GeometryGroup)data[key].Transform(xform);
@@ -110,6 +122,7 @@ public class geomObject
         geomObject mObj = new geomObject(this.name);
         mObj.number = this.number;
         mObj.text = this.text;
+        mObj.vector = this.vector;
         foreach (string key in data.Keys)
         {
             GH_GeometryGroup mGeom = (GH_GeometryGroup)data[key].Morph(morph);
@@ -124,6 +137,7 @@ public class geomObject
         geomObject dObj = new geomObject(this.name);
         dObj.number = this.number;
         dObj.text = this.text;
+        dObj.vector = this.vector;
         foreach (string key in data.Keys)
         {
             GH_GeometryGroup dGeom = (GH_GeometryGroup)data[key].DuplicateGeometry();

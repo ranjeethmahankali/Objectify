@@ -11,6 +11,48 @@ using System.Windows.Forms;
 
 namespace Objectify
 {
+    //this is the custom parameter class for the objectify component
+    public class memberParam : GH_Param<IGH_Goo>
+    {
+        //constructors
+        public memberParam(string nickname):
+            base("Member", nickname, "Member", "Data","Objectify", GH_ParamAccess.item)
+        {
+            this.options = new List<string>();
+            options.Add("Visible");
+            options.Add("Bakable");
+        }
+
+        //properties
+        private List<string> options;
+        public bool isBakable { get; set; }
+        public bool isVisible { get; set; }
+
+        //overriding the options shown in the menu
+        public override void AppendAdditionalMenuItems(ToolStripDropDown menu)
+        {
+            this.Menu_AppendDisconnectWires(menu);
+            for (int i = 0; i < this.options.Count; i++)
+            {
+                Menu_AppendItem(menu, this.options[i], optionClickHandler);
+            }
+        }
+        //this is what happens when the option is clicked
+        private void optionClickHandler(Object sender, EventArgs e)
+        {
+            //do sth when clicked
+            this.NickName = sender.ToString();
+            this.OnDisplayExpired(true);
+            this.ExpireSolution(true);
+        }
+
+        //this is the unique guid don't change this after the component is published
+        public override Guid ComponentGuid
+        {
+            get { return new Guid("{0e51fcfc-078e-4fa3-a41e-9e6b57c8d1ef}"); }
+        }
+    }
+
     //main component
     public class ObjectifyComponent : GH_Component, IGH_VariableParameterComponent
     {
@@ -45,6 +87,7 @@ namespace Objectify
         {
             pManager.AddGenericParameter("Geometry", "Label_1", "Geometry for this label", GH_ParamAccess.list);
             Params.Input[0].DataMapping = GH_DataMapping.Flatten;
+            Params.Input[0].Optional = true;
         }
         
         /// Registers all the output parameters for this component.
@@ -96,6 +139,7 @@ namespace Objectify
             param.NickName = "Label_"+paramNum;
             param.DataMapping = GH_DataMapping.Flatten;
             param.Access = GH_ParamAccess.list;
+            param.Optional = true;
 
             return param;
         }
@@ -141,6 +185,7 @@ namespace Objectify
             Dictionary<string, GH_GeometryGroup> dataDict = new Dictionary<string, GH_GeometryGroup>();
             Dictionary<string, List<double>> numDict = new Dictionary<string, List<double>>();
             Dictionary<string, List<string>> textDict = new Dictionary<string, List<string>>();
+            Dictionary<string, List<GH_Vector>> vecDict = new Dictionary<string, List<GH_Vector>>();
             for (int i = 0; i < Params.Input.Count; i++)
             {
                 List<Object> obj_in = new List<Object>();//this is for before you decide the type
@@ -158,36 +203,51 @@ namespace Objectify
                     return;
                 }
 
-                List<double> nums = new List<double>();
-                List<string> text = new List<string>();
-                //Rhino.RhinoApp.WriteLine(obj_in[0].GetType().ToString());
+                //now we try to extract all that data
+                Rhino.RhinoApp.WriteLine(obj_in[0].GetType().ToString());
                 if (obj_in[0].GetType() == typeof(GH_Number))
                 {
                     //Rhino.RhinoApp.WriteLine("Number !");
+                    List<double> nums = new List<double>();
                     DA.GetDataList<double>(i, nums);
                     numDict.Add(Params.Input[i].NickName, nums);
                 }
                 else if (obj_in[0].GetType() == typeof(GH_String))
                 {
                     //Rhino.RhinoApp.WriteLine("Text !");
+                    List<string> text = new List<string>();
                     DA.GetDataList<string>(i, text);
                     textDict.Add(Params.Input[i].NickName, text);
                 }
+                else if (obj_in[0].GetType() == typeof(GH_Vector))
+                {
+                    //Rhino.RhinoApp.WriteLine("Vector!");
+                    List<GH_Vector> vecs = new List<GH_Vector>();
+                    DA.GetDataList<GH_Vector>(i, vecs);
+                    vecDict.Add(Params.Input[i].NickName, vecs);
+                }
                 else
                 {
-                    List<IGH_GeometricGoo> geom = new List<IGH_GeometricGoo>();
-                    if (DA.GetDataList<IGH_GeometricGoo>(i, geom))
+                    try
                     {
-                        GH_GeometryGroup grp = new GH_GeometryGroup();
-                        for (int j = 0; j < geom.Count; j++)
+                        List<IGH_GeometricGoo> geom = new List<IGH_GeometricGoo>();
+                        if (DA.GetDataList<IGH_GeometricGoo>(i, geom))
                         {
-                            grp.Objects.Add(geom[j]);
+                            GH_GeometryGroup grp = new GH_GeometryGroup();
+                            for (int j = 0; j < geom.Count; j++)
+                            {
+                                grp.Objects.Add(geom[j]);
+                            }
+                            dataDict.Add(Params.Input[i].NickName, grp);
                         }
-                        dataDict.Add(Params.Input[i].NickName, grp);
-                    }else
+                        else
+                        {
+                            //if we get here then there is something wrong with the data
+                            AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Something is not right with the data you provide");
+                        }
+                    }catch(Exception e)
                     {
-                        //if we get here then there is something wrong with the data
-                        AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Something is not right with the data you provide");
+                        AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Objectofy does not support this data type");
                     }
                 }
             }
@@ -195,6 +255,7 @@ namespace Objectify
             this.obj = new geomObject(this.NickName, dataDict);
             this.obj.number = numDict;
             this.obj.text = textDict;
+            this.obj.vector = vecDict;
             //Rhino.RhinoApp.WriteLine(this.obj.dataCount.ToString());
         }
 
@@ -290,9 +351,13 @@ namespace Objectify
             {
                 this.options.Add(key);
             }
+            foreach (string key in obj.vector.Keys)
+            {
+                this.options.Add(key);
+            }
 
             //if nickname not set then empty string
-            if (this.NickName == "" || (!this.options.Contains(this.NickName)))
+            if (this.NickName == "" && options.Count > 0)
             {
                 this.NickName = options[0];
             }
@@ -397,6 +462,19 @@ namespace Objectify
                 {
                     Params.Output[0].Access = GH_ParamAccess.list;
                     DA.SetDataList(0, obj.text[key]);
+                }
+            }
+            else if (obj.vector.ContainsKey(key))
+            {
+                if (obj.vector[key].Count == 1)
+                {
+                    Params.Output[0].Access = GH_ParamAccess.item;
+                    DA.SetData(0, obj.vector[key][0]);
+                }
+                else
+                {
+                    Params.Output[0].Access = GH_ParamAccess.list;
+                    DA.SetDataList(0, obj.vector[key]);
                 }
             }
         }
