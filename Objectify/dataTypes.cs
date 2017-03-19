@@ -2,32 +2,17 @@
 using System.Collections.Generic;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
-using Grasshopper.Kernel.Parameters;
+//using Grasshopper.Kernel.Parameters;
 //using Newtonsoft.Json;
 using Grasshopper.Kernel.Types;
 //using Grasshopper.Kernel.Special;
-using System.Windows.Forms;
+//using System.Windows.Forms;
+using System.Diagnostics;
 
 //my custom datatype
 public class geomObject
 {
     //constructors
-    public geomObject(string nameStr, Dictionary<string, GH_GeometryGroup> geomDictionary)
-    {
-        name = nameStr;
-        data = geomDictionary;
-        number = new Dictionary<string, List<double>>();
-        text = new Dictionary<string, List<string>>();
-        vector = new Dictionary<string, List<GH_Vector>>();
-    }
-    public geomObject(string nameStr)
-    {
-        name = nameStr;
-        data = new Dictionary<string, GH_GeometryGroup>();
-        number = new Dictionary<string, List<double>>();
-        text = new Dictionary<string, List<string>>();
-        vector = new Dictionary<string, List<GH_Vector>>();
-    }
     public geomObject()
     {
         name = "None";//this is the default value for name
@@ -35,8 +20,18 @@ public class geomObject
         number = new Dictionary<string, List<double>>();
         text = new Dictionary<string, List<string>>();
         vector = new Dictionary<string, List<GH_Vector>>();
+        Visibility = new Dictionary<string, bool>();
+        Bakability = new Dictionary<string, bool>();
     }
-
+    public geomObject(string nameStr) : this()
+    {
+        name = nameStr;
+    }
+    public geomObject(string nameStr, Dictionary<string, GH_GeometryGroup> geomDictionary):this(nameStr)
+    {
+        data = geomDictionary;
+    }
+    
     //object properties
     public string name;
     public Dictionary<string, GH_GeometryGroup> data;
@@ -44,13 +39,37 @@ public class geomObject
     public Dictionary<string, List<string>> text;
     public Dictionary<string, List<GH_Vector>> vector;
     public int dataCount { get { return (this.data.Count + this.number.Count + this.text.Count); } }
+    public Dictionary<string, bool> Visibility;
+    public Dictionary<string, bool> Bakability;
 
-    //this function gets all the geometry as a group (nested if the members are already groups themselves))
-    public GH_GeometryGroup getGeometryGroup()
+    //this copies the object - all data except geometry
+    public geomObject fresh()
     {
+        geomObject nObj = new geomObject(this.name);
+        nObj.number = this.number;
+        nObj.text = this.text;
+        nObj.vector = this.vector;
+
+        nObj.Visibility = this.Visibility;
+        nObj.Bakability = this.Bakability;
+
+        return nObj;
+    }
+    //this function gets all the geometry as a group (nested if the members are already groups themselves))
+    public GH_GeometryGroup getGeometryGroup(string filter = "all")
+    {
+        //return rmpty group if the filter is invalid
+        List<string> validFilters = new List<string>(new string[] {"visible","bakable","both","all"});
+        if (!validFilters.Contains(filter)) { return new GH_GeometryGroup(); }
+
         GH_GeometryGroup geoGrp = new GH_GeometryGroup();
         foreach (string key in data.Keys)
         {
+            if(!this.Visibility.ContainsKey(key) || !this.Bakability.ContainsKey(key)) {continue;}
+            if(filter == "visible" && !this.Visibility[key]) {continue;}
+            if(filter == "bakable" && !this.Bakability[key]) { continue; }
+            if(filter == "both" && (!this.Bakability[key] && !this.Visibility[key])) { continue; }
+            
             GH_GeometryGroup subGrp = new GH_GeometryGroup();
             for (int i = 0; i < data[key].Objects.Count; i++)
             {
@@ -104,10 +123,7 @@ public class geomObject
     //this is for transform
     public geomObject Transform(Transform xform)
     {
-        geomObject xObj = new geomObject(this.name);
-        xObj.number = this.number;
-        xObj.text = this.text;
-        xObj.vector = this.vector;
+        geomObject xObj = fresh();
         foreach (string key in data.Keys)
         {
             GH_GeometryGroup xGeom = (GH_GeometryGroup)data[key].Transform(xform);
@@ -119,10 +135,7 @@ public class geomObject
     //this is for morphing - dont even know what it is, but I dont have to
     public geomObject Morph(SpaceMorph morph)
     {
-        geomObject mObj = new geomObject(this.name);
-        mObj.number = this.number;
-        mObj.text = this.text;
-        mObj.vector = this.vector;
+        geomObject mObj = fresh();
         foreach (string key in data.Keys)
         {
             GH_GeometryGroup mGeom = (GH_GeometryGroup)data[key].Morph(morph);
@@ -134,10 +147,7 @@ public class geomObject
     //this is for duplication
     public geomObject DuplicateGeometry()
     {
-        geomObject dObj = new geomObject(this.name);
-        dObj.number = this.number;
-        dObj.text = this.text;
-        dObj.vector = this.vector;
+        geomObject dObj = fresh();
         foreach (string key in data.Keys)
         {
             GH_GeometryGroup dGeom = (GH_GeometryGroup)data[key].DuplicateGeometry();
@@ -167,7 +177,7 @@ public class geomObjGoo : GH_GeometricGoo<geomObject>, IGH_PreviewData, IGH_Bake
         get
         {
             if (this.Value == null) { return BoundingBox.Empty; }
-            GH_GeometryGroup geoGrp = this.Value.getGeometryGroup();
+            GH_GeometryGroup geoGrp = this.Value.getGeometryGroup("bakable");
             if (geoGrp == null) { return BoundingBox.Empty; }
             return geoGrp.Boundingbox;
         }
@@ -179,7 +189,7 @@ public class geomObjGoo : GH_GeometricGoo<geomObject>, IGH_PreviewData, IGH_Bake
     //this is the bounding box
     public override BoundingBox GetBoundingBox(Transform xform)
     {
-        return this.Value.getGeometryGroup().GetBoundingBox(xform);
+        return this.Value.getGeometryGroup("bakable").GetBoundingBox(xform);
     }
     //this is the transformations
     public override IGH_GeometricGoo Transform(Transform xform)
@@ -210,11 +220,11 @@ public class geomObjGoo : GH_GeometricGoo<geomObject>, IGH_PreviewData, IGH_Bake
     }
     public void DrawViewportMeshes(GH_PreviewMeshArgs args)
     {
-        this.Value.getGeometryGroup().DrawViewportMeshes(args);
+        this.Value.getGeometryGroup("visible").DrawViewportMeshes(args);
     }
     public void DrawViewportWires(GH_PreviewWireArgs args)
     {
-        this.Value.getGeometryGroup().DrawViewportWires(args);
+        this.Value.getGeometryGroup("visible").DrawViewportWires(args);
     }
 
     //these are for casting my datatype into others
@@ -224,7 +234,7 @@ public class geomObjGoo : GH_GeometricGoo<geomObject>, IGH_PreviewData, IGH_Bake
         //we use GH_GeometryGroup as out mediator type
         if (typeof(Q).IsAssignableFrom(typeof(GH_GeometryGroup)))
         {
-            target = (Q)(Object)this.Value.getGeometryGroup();
+            target = (Q)(Object)this.Value.getGeometryGroup("both");
             //casting was successful
             return true;
         }
@@ -240,6 +250,6 @@ public class geomObjGoo : GH_GeometricGoo<geomObject>, IGH_PreviewData, IGH_Bake
     public bool BakeGeometry(Rhino.RhinoDoc doc, Rhino.DocObjects.ObjectAttributes att, out Guid obj_guid)
     {
         obj_guid = new Guid();
-        return this.Value.getGeometryGroup().BakeGeometry(doc, att, ref obj_guid);
+        return this.Value.getGeometryGroup("bakable").BakeGeometry(doc, att, ref obj_guid);
     }
 }

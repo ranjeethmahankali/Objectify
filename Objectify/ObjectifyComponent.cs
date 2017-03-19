@@ -6,53 +6,112 @@ using Rhino.Geometry;
 using Grasshopper.Kernel.Parameters;
 //using Newtonsoft.Json;
 using Grasshopper.Kernel.Types;
+using GH_IO.Serialization;
 //using Grasshopper.Kernel.Special;
 using System.Windows.Forms;
+//using System.Diagnostics;
+using Newtonsoft.Json;
 
 namespace Objectify
 {
     //this is the custom parameter class for the objectify component
-    public class memberParam : GH_Param<IGH_Goo>
+    public class memberInput : GH_Param<IGH_Goo>
     {
         //constructors
-        public memberParam(string nickname):
-            base("Member", nickname, "Member", "Data","Objectify", GH_ParamAccess.item)
+        public memberInput():
+            base("Member Input", "Label", "Input data", "Data", "Objectify", GH_ParamAccess.list)
         {
-            this.options = new List<string>();
-            options.Add("Visible");
-            options.Add("Bakable");
-        }
+            this.DataMapping = GH_DataMapping.Flatten;
+            this.Optional = true;
+            this.Access = GH_ParamAccess.list;
 
+            this.option = new Dictionary<string, bool>();
+            option.Add("Visible", true);
+            option.Add("Bakable", true);
+
+            this.isGeometry = false;
+        }
+        public memberInput(string nickname):this()//using the 0 arg constructor and building on top of it.
+        {
+            this.NickName = nickname;
+        }
+        /// <summary>
+        /// Since this parameter wraps IGH_Goo (which is an interface), this method needs
+        /// to be overridden, for GH can't instantiate interfaces.
+        /// </summary>
+        /// <returns>Default data to be stored.</returns>
+        protected override IGH_Goo InstantiateT()
+        {
+            return new GH_ObjectWrapper();
+        }
         //properties
-        private List<string> options;
-        public bool isBakable { get; set; }
-        public bool isVisible { get; set; }
+        public Dictionary<string, bool> option;
+        public bool isGeometry;
 
         //overriding the options shown in the menu
         public override void AppendAdditionalMenuItems(ToolStripDropDown menu)
         {
             this.Menu_AppendDisconnectWires(menu);
-            for (int i = 0; i < this.options.Count; i++)
+            foreach (string opName in option.Keys)
             {
-                Menu_AppendItem(menu, this.options[i], optionClickHandler);
+                Menu_AppendItem(menu, opName, optionClickHandler, isGeometry, isGeometry && option[opName]);
             }
         }
         //this is what happens when the option is clicked
         private void optionClickHandler(Object sender, EventArgs e)
         {
             //do sth when clicked
-            this.NickName = sender.ToString();
+            ToolStripMenuItem item = sender as ToolStripMenuItem;
+            if (item == null)
+            {
+                return; // Weird...
+            }
+
+            if (!this.option.ContainsKey(item.Text))
+            {
+                return; //unrecognized option
+            }
+
+            //recording undo event before changing option state. This allows the user to undo this action
+            string desc = "Changed "+item.Text+" of "+this.NickName;
+            RecordUndoEvent(desc);
+            //changing the option now.
+            this.option[item.Text] = !(this.option[item.Text]);
             this.OnDisplayExpired(true);
             this.ExpireSolution(true);
+        }
+
+        //these methods are for (de)serialization - for when reading and writing to file
+        //this tells GH how to write a file containing your component and how to read from it
+        public override bool Write(GH_IWriter writer)
+        {
+            // converting the options and states to json to be saved
+            string jsonStr = JsonConvert.SerializeObject(this.option);
+            writer.SetString("Options", jsonStr);
+
+            return base.Write(writer);
+        }
+        public override bool Read(GH_IReader reader)
+        {
+            // reading the json string and then deserializing it to set the options
+            string optString = reader.GetString("Options");
+            if (optString == null)
+            {
+                //the options were not serialized when the file was saved last time
+                return base.Read(reader);
+            }
+            this.option = JsonConvert.DeserializeObject<Dictionary<string, bool>>(optString);
+
+            return base.Read(reader);
         }
 
         //this is the unique guid don't change this after the component is published
         public override Guid ComponentGuid
         {
-            get { return new Guid("{0e51fcfc-078e-4fa3-a41e-9e6b57c8d1ef}"); }
+            get { return new Guid("{20bb1984-b89d-4414-98ab-37ac6e413198}"); }
         }
     }
-
+    
     //main component
     public class ObjectifyComponent : GH_Component, IGH_VariableParameterComponent
     {
@@ -85,12 +144,13 @@ namespace Objectify
         /// Registers all the input parameters for this component.
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddGenericParameter("Geometry", "Label_1", "Geometry for this label", GH_ParamAccess.list);
-            Params.Input[0].DataMapping = GH_DataMapping.Flatten;
-            Params.Input[0].Optional = true;
+            memberInput param = new memberInput("Label_1");
+            //pManager.AddParameter(, "Label", "L1", "This is the descriptions", GH_ParamAccess.list);
+            pManager.AddParameter(param);
+            //pManager.AddGenericParameter("", "Label_1", "", GH_ParamAccess.list);
         }
         
-        /// Registers all the output parameters for this component.
+        // Registers all the output parameters for this component.
         protected override void RegisterOutputParams(GH_Component.GH_OutputParamManager pManager)
         {
             pManager.AddGenericParameter("Object", "O", "Object", GH_ParamAccess.item);
@@ -107,39 +167,20 @@ namespace Objectify
         //this makes the decision of whether to allow the user to insert parameters or not
         public bool CanInsertParameter(GH_ParameterSide side, int index)
         {
-            if (side == GH_ParameterSide.Input)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return (side == GH_ParameterSide.Input);
         }
-
         //this makes the decision of whether to allow the user to remove parameters or not
         public bool CanRemoveParameter(GH_ParameterSide side, int index)
         {
-            if (side == GH_ParameterSide.Input && Params.Input.Count > 1)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return (side == GH_ParameterSide.Input && Params.Input.Count > 1);
         }
 
         //The parameter returned by this func is what is added to the component when user creates a component
         public IGH_Param CreateParameter(GH_ParameterSide side, int index  )
         {
             int paramNum = Params.Input.Count + 1;
-            Param_GenericObject param = new Param_GenericObject();
-            param.Name = "Geometry for this label";
-            param.NickName = "Label_"+paramNum;
-            param.DataMapping = GH_DataMapping.Flatten;
-            param.Access = GH_ParamAccess.list;
-            param.Optional = true;
+            //memberInput param = newParam("Label_" + paramNum, index);
+            memberInput param = new memberInput("Label_" + paramNum);
 
             return param;
         }
@@ -147,20 +188,19 @@ namespace Objectify
         //this is same as remove parameter though I am not sure
         public bool DestroyParameter(GH_ParameterSide side, int index)
         {
-            if(side == GH_ParameterSide.Input && Params.Input.Count > 1)
-            {
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            return true;
         }
 
         //this is any maintenenance that needs to be done - not really sure what it is for but I was forced to implement it
         public void VariableParameterMaintenance()
         {
-            //doc.NewSolution(false);
+            // This is where you make sure all your parameters are set up correctly.
+            for (int i = 0; i < Params.Input.Count; i++)
+            {
+                IGH_Param param = Params.Input[i];
+                param.Optional = true;
+                param.Access = GH_ParamAccess.list;
+            }
         }
 
         /// This is the method that actually does the work.
@@ -204,27 +244,29 @@ namespace Objectify
                 }
 
                 //now we try to extract all that data
-                Rhino.RhinoApp.WriteLine(obj_in[0].GetType().ToString());
+                //Rhino.RhinoApp.WriteLine(obj_in[0].GetType().ToString());
+                memberInput param = Params.Input[i] as memberInput;
+                param.isGeometry = false;
                 if (obj_in[0].GetType() == typeof(GH_Number))
                 {
                     //Rhino.RhinoApp.WriteLine("Number !");
                     List<double> nums = new List<double>();
                     DA.GetDataList<double>(i, nums);
-                    numDict.Add(Params.Input[i].NickName, nums);
+                    numDict.Add(param.NickName, nums);
                 }
                 else if (obj_in[0].GetType() == typeof(GH_String))
                 {
                     //Rhino.RhinoApp.WriteLine("Text !");
                     List<string> text = new List<string>();
                     DA.GetDataList<string>(i, text);
-                    textDict.Add(Params.Input[i].NickName, text);
+                    textDict.Add(param.NickName, text);
                 }
                 else if (obj_in[0].GetType() == typeof(GH_Vector))
                 {
                     //Rhino.RhinoApp.WriteLine("Vector!");
                     List<GH_Vector> vecs = new List<GH_Vector>();
                     DA.GetDataList<GH_Vector>(i, vecs);
-                    vecDict.Add(Params.Input[i].NickName, vecs);
+                    vecDict.Add(param.NickName, vecs);
                 }
                 else
                 {
@@ -238,7 +280,8 @@ namespace Objectify
                             {
                                 grp.Objects.Add(geom[j]);
                             }
-                            dataDict.Add(Params.Input[i].NickName, grp);
+                            dataDict.Add(param.NickName, grp);
+                            param.isGeometry = true;
                         }
                         else
                         {
@@ -256,9 +299,22 @@ namespace Objectify
             this.obj.number = numDict;
             this.obj.text = textDict;
             this.obj.vector = vecDict;
+            updateSettings();
             //Rhino.RhinoApp.WriteLine(this.obj.dataCount.ToString());
         }
 
+        //update settings
+        private void updateSettings()
+        {
+            this.obj.Bakability.Clear();
+            this.obj.Visibility.Clear();
+            for (int i = 0; i < Params.Input.Count; i++)
+            {
+                memberInput param = Params.Input[i] as memberInput;
+                this.obj.Bakability.Add(param.NickName, param.option["Bakable"]);
+                this.obj.Visibility.Add(param.NickName, param.option["Visible"]);
+            }
+        }
         //checks if the data in the list is all of the same type
         private bool validDatatypes(List<Object> objList)
         {
@@ -376,7 +432,7 @@ namespace Objectify
         }
     }
 
-    //this is the object reader
+    //this is the object reader component
     public class ObjectMember : GH_Component
     {
         //constructor that calls the base class constructor
@@ -509,4 +565,7 @@ namespace Objectify
             get { return new Guid("{0f8fad5b-d9cb-469f-a165-70867728950e}"); }
         }
     }
+
+    //this component can mutate an object - change one or more of its members
+    //this component yet to be written
 }
