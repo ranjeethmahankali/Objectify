@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using Grasshopper.Kernel;
+using Rhino.Geometry;
+using Grasshopper.Kernel.Parameters;
 //using Newtonsoft.Json;
 using Grasshopper.Kernel.Types;
 //using Grasshopper.Kernel.Special;
@@ -14,25 +16,17 @@ namespace Objectify
     {
         //constructors
         public memberParam(string nickname):
-            base("Member", nickname, "Member", "Data", "Objectify", GH_ParamAccess.list)
+            base("Member", nickname, "Member", "Data","Objectify", GH_ParamAccess.item)
         {
-            this.DataMapping = GH_DataMapping.Flatten;
-            this.Access = GH_ParamAccess.list;  
-            this.NickName = nickname;
-            this.Optional = true;
-
             this.options = new List<string>();
             options.Add("Visible");
             options.Add("Bakable");
-
-            this.opState = new Dictionary<string, bool>();
-            opState.Add("Visible", true);
-            opState.Add("Bakable", true);
         }
 
         //properties
         private List<string> options;
-        public Dictionary<string, bool> opState;
+        public bool isBakable { get; set; }
+        public bool isVisible { get; set; }
 
         //overriding the options shown in the menu
         public override void AppendAdditionalMenuItems(ToolStripDropDown menu)
@@ -40,21 +34,14 @@ namespace Objectify
             this.Menu_AppendDisconnectWires(menu);
             for (int i = 0; i < this.options.Count; i++)
             {
-                if (opState[this.options[i]])
-                {
-                    Menu_AppendItem(menu, this.options[i], optionClickHandler, true, true);
-                }
-                else
-                {
-                    Menu_AppendItem(menu, this.options[i], optionClickHandler);
-                }
+                Menu_AppendItem(menu, this.options[i], optionClickHandler);
             }
         }
         //this is what happens when the option is clicked
         private void optionClickHandler(Object sender, EventArgs e)
         {
             //do sth when clicked
-            opState[sender.ToString()] = !(opState[sender.ToString()]);
+            this.NickName = sender.ToString();
             this.OnDisplayExpired(true);
             this.ExpireSolution(true);
         }
@@ -94,25 +81,13 @@ namespace Objectify
                 return keyList;
             }
         }
-        private List<memberParam> paramList = new List<memberParam>();
 
-        //this safely creates and returns a new parameter - does not add it to the component
-        private memberParam newParam(string nickName, int index = -1)
-        {
-            if (index == -1) { index = Params.Input.Count; }
-            memberParam param = new memberParam(nickName);
-            paramList.Insert(index, param);
-
-            return param;
-        }
         /// Registers all the input parameters for this component.
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            memberParam param = newParam("Label_1");
-            pManager.AddParameter(param);
-            /*pManager.AddGenericParameter("Geometry", "Label_1", "Geometry for this label", GH_ParamAccess.list);
+            pManager.AddGenericParameter("Geometry", "Label_1", "Geometry for this label", GH_ParamAccess.list);
             Params.Input[0].DataMapping = GH_DataMapping.Flatten;
-            Params.Input[0].Optional = true;*/
+            Params.Input[0].Optional = true;
         }
         
         /// Registers all the output parameters for this component.
@@ -159,7 +134,12 @@ namespace Objectify
         public IGH_Param CreateParameter(GH_ParameterSide side, int index  )
         {
             int paramNum = Params.Input.Count + 1;
-            memberParam param = newParam("Label_" + paramNum.ToString(), index);
+            Param_GenericObject param = new Param_GenericObject();
+            param.Name = "Geometry for this label";
+            param.NickName = "Label_"+paramNum;
+            param.DataMapping = GH_DataMapping.Flatten;
+            param.Access = GH_ParamAccess.list;
+            param.Optional = true;
 
             return param;
         }
@@ -169,7 +149,6 @@ namespace Objectify
         {
             if(side == GH_ParameterSide.Input && Params.Input.Count > 1)
             {
-                paramList.RemoveAt(index);
                 return true;
             }
             else
@@ -225,7 +204,7 @@ namespace Objectify
                 }
 
                 //now we try to extract all that data
-                //Rhino.RhinoApp.WriteLine(obj_in[0].GetType().ToString());
+                Rhino.RhinoApp.WriteLine(obj_in[0].GetType().ToString());
                 if (obj_in[0].GetType() == typeof(GH_Number))
                 {
                     //Rhino.RhinoApp.WriteLine("Number !");
@@ -277,7 +256,6 @@ namespace Objectify
             this.obj.number = numDict;
             this.obj.text = textDict;
             this.obj.vector = vecDict;
-            updateSettings();
             //Rhino.RhinoApp.WriteLine(this.obj.dataCount.ToString());
         }
 
@@ -292,19 +270,6 @@ namespace Objectify
                 }
             }
             return true;
-        }
-
-        //this one updates the visibility and bakability settings from all params
-        private void updateSettings()
-        {
-            //clearing all the previous settings
-            this.obj.Bakability.Clear();
-            this.obj.Visibility.Clear();
-            foreach(memberParam param in paramList)
-            {
-                this.obj.Visibility.Add(param.NickName, param.opState["Visible"]);
-                this.obj.Bakability.Add(param.NickName, param.opState["Bakable"]);
-            }
         }
 
         //I have no idea what this is for - came with the template - find out later
