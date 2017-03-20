@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
 //using Grasshopper.Kernel.Parameters;
@@ -38,23 +39,99 @@ public class geomObject
     public Dictionary<string, List<double>> number;
     public Dictionary<string, List<string>> text;
     public Dictionary<string, List<GH_Vector>> vector;
-    public int dataCount { get { return (this.data.Count + this.number.Count + this.text.Count); } }
+    public int dataCount { get { return (this.data.Count + this.number.Count + this.text.Count + this.vector.Count); } }
     public Dictionary<string, bool> Visibility;
     public Dictionary<string, bool> Bakability;
 
-    //this copies the object - all data except geometry
-    public geomObject fresh()
+    //this copies the object - all data except geometry unless the bool is true
+    public geomObject fresh(bool withGeom = false)
     {
+        //have to manually recreate the object to avoid references and create a true deep copy
         geomObject nObj = new geomObject(this.name);
-        nObj.number = this.number;
-        nObj.text = this.text;
-        nObj.vector = this.vector;
 
-        nObj.Visibility = this.Visibility;
-        nObj.Bakability = this.Bakability;
+        if (withGeom)
+        {
+            foreach (string key in this.data.Keys) { nObj.data.Add(key, this.data[key]); }
+        }
+
+        foreach (string key in this.number.Keys) { nObj.number.Add(key, this.number[key]); }
+        foreach (string key in this.text.Keys) { nObj.text.Add(key, this.text[key]); }
+        foreach (string key in this.vector.Keys) { nObj.vector.Add(key, this.vector[key]); }
+
+        foreach (string key in this.Visibility.Keys) { nObj.Visibility.Add(key, this.Visibility[key]); }
+        foreach (string key in this.Bakability.Keys) { nObj.Bakability.Add(key, this.Bakability[key]); }
 
         return nObj;
     }
+    //returns the type of any key (member name) that is passed as param
+    public Type getTypeOf(string key)
+    {
+        Type listType = null;
+        if (this.data.ContainsKey(key))
+        {
+            Type[] args = this.data.GetType().GetGenericArguments();
+            return args[1];
+        }
+        else if (this.number.ContainsKey(key))
+        {
+            Type[] args = this.number.GetType().GetGenericArguments();
+            listType = args[1];
+        }
+        else if (this.text.ContainsKey(key))
+        {
+            Type[] args = this.text.GetType().GetGenericArguments();
+            listType = args[1];
+        }
+        else if (this.vector.ContainsKey(key))
+        {
+            Type[] args = this.vector.GetType().GetGenericArguments();
+            listType = args[1];
+        }
+        else
+        {
+            return null;
+        }
+
+        //Debug.WriteLine(listType.ToString());
+        Type itemType = listType.GetGenericArguments().Single();
+
+        return itemType;
+    } 
+    //removes the data with that key from this object
+    public void removeMember(string key)
+    {
+        if (this.data.ContainsKey(key))
+        {
+            this.data.Remove(key);
+            return;
+        }
+        else if (this.number.ContainsKey(key))
+        {
+            this.number.Remove(key);
+            return;
+        }
+        else if (this.text.ContainsKey(key))
+        {
+            this.text.Remove(key);
+            return;
+        }
+        else if (this.vector.ContainsKey(key))
+        {
+            this.vector.Remove(key);
+            return;
+        }
+    }
+    //returns whether this object has a member with that name
+    public bool hasMember(string key)
+    {
+        return (
+            this.data.ContainsKey(key) || 
+            this.number.ContainsKey(key)|| 
+            this.text.ContainsKey(key) || 
+            this.vector.ContainsKey(key)
+            );
+    }
+
     //this function gets all the geometry as a group (nested if the members are already groups themselves))
     public GH_GeometryGroup getGeometryGroup(string filter = "all")
     {
