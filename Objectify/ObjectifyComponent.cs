@@ -103,7 +103,7 @@ namespace Objectify
 
             return base.Read(reader);
         }
-
+        
         //this is the unique guid don't change this after the component is published
         public override Guid ComponentGuid
         {
@@ -330,7 +330,18 @@ namespace Objectify
         {
             get { return GH_Exposure.primary; }
         }
-    
+
+        //these methods are for (de)serialization - for when reading and writing to file
+        //this tells GH how to write a file containing your component and how to read from it
+        public override bool Write(GH_IWriter writer)
+        {
+            return base.Write(writer);
+        }
+        public override bool Read(GH_IReader reader)
+        {
+            return base.Read(reader);
+        }
+
         //If you make this property return an image (loaded from a path) then that will be the component logo
         protected override System.Drawing.Bitmap Icon
         {
@@ -425,6 +436,18 @@ namespace Objectify
             this.update(obj);
             this.OnDisplayExpired(true);
         }
+
+        //these methods are for (de)serialization - for when reading and writing to file
+        //this tells GH how to write a file containing your component and how to read from it
+        public override bool Write(GH_IWriter writer)
+        {
+            return base.Write(writer);
+        }
+        public override bool Read(GH_IReader reader)
+        {
+            return base.Read(reader);
+        }
+
         //this is the unique guid don't change this after the component is published
         public override Guid ComponentGuid
         {
@@ -557,6 +580,17 @@ namespace Objectify
                 //return Resources.IconForThisComponent;
                 return null;
             }
+        }
+
+        //these methods are for (de)serialization - for when reading and writing to file
+        //this tells GH how to write a file containing your component and how to read from it
+        public override bool Write(GH_IWriter writer)
+        {
+            return base.Write(writer);
+        }
+        public override bool Read(GH_IReader reader)
+        {
+            return base.Read(reader);
         }
 
         //dont change this Guid after publishing the plugin
@@ -709,6 +743,18 @@ namespace Objectify
 
             DA.SetData(0, new geomObjGoo(obj));
         }
+
+        //these methods are for (de)serialization - for when reading and writing to file
+        //this tells GH how to write a file containing your component and how to read from it
+        public override bool Write(GH_IWriter writer)
+        {
+            return base.Write(writer);
+        }
+        public override bool Read(GH_IReader reader)
+        {
+            return base.Read(reader);
+        }
+
         //this is the guid of the component, once you publish the plugin u cannot change this
         public override Guid ComponentGuid
         {
