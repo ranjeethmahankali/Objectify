@@ -8,7 +8,7 @@ using Grasshopper.Kernel.Types;
 using GH_IO.Serialization;
 //using Grasshopper.Kernel.Special;
 using System.Windows.Forms;
-//using System.Diagnostics;
+using System.Diagnostics;
 using Newtonsoft.Json;
 
 namespace Objectify
@@ -84,9 +84,16 @@ namespace Objectify
         //this tells GH how to write a file containing your component and how to read from it
         public override bool Write(GH_IWriter writer)
         {
-            // converting the options and states to json to be saved
-            string jsonStr = JsonConvert.SerializeObject(this.option);
-            writer.SetString("Options", jsonStr);
+            try
+            {
+                // converting the options and states to json to be saved
+                string jsonStr = JsonConvert.SerializeObject(this.option);
+                writer.SetString("Options", jsonStr);
+            }catch(Exception e)
+            {
+                Debug.WriteLine(e.Message);
+                Rhino.RhinoApp.WriteLine(e.Message);
+            }
 
             return base.Write(writer);
         }
@@ -103,7 +110,12 @@ namespace Objectify
 
             return base.Read(reader);
         }
-        
+
+        //This controls what user can see
+        public override GH_Exposure Exposure
+        {
+            get { return GH_Exposure.hidden; }
+        }
         //this is the unique guid don't change this after the component is published
         public override Guid ComponentGuid
         {
@@ -342,14 +354,13 @@ namespace Objectify
             return base.Read(reader);
         }
 
-        //If you make this property return an image (loaded from a path) then that will be the component logo
+        //this is the icon for this component
         protected override System.Drawing.Bitmap Icon
         {
             get
             {
-                // You can add image files to your project resources and access them like this:
-                //return Resources.IconForThisComponent;
-                return null;
+                // Returning the Icon for this component
+                return Properties.Resources.Objectify;
             }
         }
 
@@ -448,6 +459,11 @@ namespace Objectify
             return base.Read(reader);
         }
 
+        //This controls what user can see
+        public override GH_Exposure Exposure
+        {
+            get { return GH_Exposure.hidden; }
+        }
         //this is the unique guid don't change this after the component is published
         public override Guid ComponentGuid
         {
@@ -577,8 +593,7 @@ namespace Objectify
             get
             {
                 // You can add image files to your project resources and access them like this:
-                //return Resources.IconForThisComponent;
-                return null;
+                return Properties.Resources.ObjectMember;
             }
         }
 
@@ -759,6 +774,16 @@ namespace Objectify
         public override Guid ComponentGuid
         {
             get { return new Guid("{c3430f1a-0d01-47ae-b5be-84a9408ad73a}"); }
+        }
+
+        //this is the icon for this component
+        protected override System.Drawing.Bitmap Icon
+        {
+            get
+            {
+                // Returning the Icon for this component
+                return Properties.Resources.MutateObject;
+            }
         }
     }
 }
