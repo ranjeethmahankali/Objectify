@@ -160,7 +160,7 @@ public class geomObject
     //this is for when the user prints the object onto a panel
     public override string ToString()
     {
-        string output = name + " object with " + data.Count.ToString() + " members:{";
+        string output = name + " object with " + (this.dataCount+1).ToString() + " members:{";
         int counter = 0;
         //all the geometry members
         foreach (string key in data.Keys)
