@@ -9,6 +9,7 @@ using Grasshopper.Kernel.Types;
 //using Grasshopper.Kernel.Special;
 //using System.Windows.Forms;
 using System.Diagnostics;
+using Newtonsoft.Json;
 
 //my custom datatype
 public class geomObject
@@ -313,6 +314,30 @@ public class geomObjGoo : GH_GeometricGoo<geomObject>, IGH_PreviewData, IGH_Bake
         {
             target = (Q)(Object)this.Value.getGeometryGroup("both");
             //casting was successful
+            return true;
+        }
+        else if (typeof(Q).IsAssignableFrom(typeof(Dictionary<string, string>)))
+        {
+            Dictionary<string, string> castDict = new Dictionary<string, string>();
+            castDict.Add("name", this.Value.name);//the name of the object
+            
+            //now only adding only the bakable gemetry
+            Dictionary<string, GH_GeometryGroup> newGeom = new Dictionary<string, GH_GeometryGroup>();
+            foreach (string key in this.Value.data.Keys)
+            {
+                if (this.Value.Bakability[key])
+                {
+                    newGeom.Add(key, this.Value.data[key]);
+                }
+            }
+            castDict.Add("data", JsonConvert.SerializeObject(newGeom));
+
+            //now adding numbers, vectors and text
+            castDict.Add("number", JsonConvert.SerializeObject(this.Value.number));
+            castDict.Add("text", JsonConvert.SerializeObject(this.Value.text));
+            castDict.Add("vector", JsonConvert.SerializeObject(this.Value.vector));
+
+            target = (Q)(Object)castDict;
             return true;
         }
         else
