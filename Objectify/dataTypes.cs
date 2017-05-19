@@ -33,6 +33,20 @@ public class geomObject
     {
         data = geomDictionary;
     }
+    //this constructor is for the cases where this object has to be reconstructed from
+    //a dictionary with json strings of all its fields
+    public geomObject(Dictionary<string, string> jsonDict)
+    {
+        name = jsonDict["name"];//this is the default value for name
+        data = JsonConvert.DeserializeObject<Dictionary<string, GH_GeometryGroup>>(jsonDict["data"]);
+        number = JsonConvert.DeserializeObject<Dictionary<string, List<double>>>(jsonDict["number"]);
+        text = JsonConvert.DeserializeObject<Dictionary<string, List<string>>>(jsonDict["text"]);
+        vector = JsonConvert.DeserializeObject<Dictionary<string, List<GH_Vector>>>(jsonDict["vector"]);
+        
+        //now getting the visibility and bakability settings
+        Visibility = JsonConvert.DeserializeObject<Dictionary<string, bool>>(jsonDict["Visibility"]);
+        Bakability = JsonConvert.DeserializeObject<Dictionary<string, bool>>(jsonDict["Bakability"]);
+    }
     
     //object properties
     public string name;
@@ -249,6 +263,14 @@ public class geomObjGoo : GH_GeometricGoo<geomObject>, IGH_PreviewData, IGH_Bake
         if (obj == null) { obj = new geomObject(); }
         this.Value = obj;
     }
+    public geomObjGoo(Dictionary<string, string> jsonStr)
+    {
+        geomObject obj;
+        if (jsonStr == null) { obj = new geomObject(); }
+        else{obj = new geomObject(jsonStr);}
+
+        this.Value = obj;
+    }
     //I have to implement these properties for using the GH_Geometric_Goo class
     public override BoundingBox Boundingbox
     {
@@ -320,22 +342,16 @@ public class geomObjGoo : GH_GeometricGoo<geomObject>, IGH_PreviewData, IGH_Bake
         {
             Dictionary<string, string> castDict = new Dictionary<string, string>();
             castDict.Add("name", this.Value.name);//the name of the object
-            
-            //now only adding only the bakable gemetry
-            Dictionary<string, GH_GeometryGroup> newGeom = new Dictionary<string, GH_GeometryGroup>();
-            foreach (string key in this.Value.data.Keys)
-            {
-                if (this.Value.Bakability[key])
-                {
-                    newGeom.Add(key, this.Value.data[key]);
-                }
-            }
-            castDict.Add("data", JsonConvert.SerializeObject(newGeom));
 
-            //now adding numbers, vectors and text
+            //now adding data, numbers, vectors and text
+            castDict.Add("data", JsonConvert.SerializeObject(this.Value.data));
             castDict.Add("number", JsonConvert.SerializeObject(this.Value.number));
             castDict.Add("text", JsonConvert.SerializeObject(this.Value.text));
             castDict.Add("vector", JsonConvert.SerializeObject(this.Value.vector));
+
+            //now adding visibility and bakability settings
+            castDict.Add("Visibility", JsonConvert.SerializeObject(this.Value.Visibility));
+            castDict.Add("Bakability", JsonConvert.SerializeObject(this.Value.Bakability));
 
             target = (Q)(Object)castDict;
             return true;
