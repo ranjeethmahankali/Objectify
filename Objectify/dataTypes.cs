@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Linq;
 using Grasshopper.Kernel;
 using Rhino.Geometry;
@@ -10,10 +11,33 @@ using Grasshopper.Kernel.Types;
 //using System.Windows.Forms;
 using System.Diagnostics;
 using Newtonsoft.Json;
+using System.Xml.Serialization;
+using System.IO;
+using System.Text;
 
 //my custom datatype
 public class geomObject
 {
+    //sml serialization method
+    public static string SerializeToString(object obj)
+    {
+        XmlSerializer serializer = new XmlSerializer(obj.GetType());
+
+        using (StringWriter writer = new StringWriter())
+        {
+            serializer.Serialize(writer, obj);
+
+            return writer.ToString();
+        }
+    }
+    public static T DeserializeFromString<T>(string xmlString)
+    {
+        XmlSerializer serializer = new XmlSerializer(typeof(T));
+        MemoryStream memStream = new MemoryStream(Encoding.UTF8.GetBytes(xmlString));
+        T resultingMessage = (T)serializer.Deserialize(memStream);
+        return resultingMessage;
+    }
+
     //constructors
     public geomObject()
     {
@@ -35,17 +59,18 @@ public class geomObject
     }
     //this constructor is for the cases where this object has to be reconstructed from
     //a dictionary with json strings of all its fields
-    public geomObject(Dictionary<string, string> jsonDict)
+    public geomObject(Dictionary<string, string> xmlDict)
     {
-        name = jsonDict["name"];//this is the default value for name
-        data = JsonConvert.DeserializeObject<Dictionary<string, GH_GeometryGroup>>(jsonDict["data"]);
-        number = JsonConvert.DeserializeObject<Dictionary<string, List<double>>>(jsonDict["number"]);
-        text = JsonConvert.DeserializeObject<Dictionary<string, List<string>>>(jsonDict["text"]);
-        vector = JsonConvert.DeserializeObject<Dictionary<string, List<GH_Vector>>>(jsonDict["vector"]);
+        name = xmlDict["name"];//this is the default value for name
+        data = geomObject.DeserializeFromString<Dictionary<string, GH_GeometryGroup>>(xmlDict["data"]);
+        number = geomObject.DeserializeFromString<Dictionary<string, List<double>>>(xmlDict["number"]);
+        text = geomObject.DeserializeFromString<Dictionary<string, List<string>>>(xmlDict["text"]);
+        vector = geomObject.DeserializeFromString<Dictionary<string, List<GH_Vector>>>(xmlDict["vector"]);
         
         //now getting the visibility and bakability settings
-        Visibility = JsonConvert.DeserializeObject<Dictionary<string, bool>>(jsonDict["Visibility"]);
-        Bakability = JsonConvert.DeserializeObject<Dictionary<string, bool>>(jsonDict["Bakability"]);
+        Visibility = geomObject.DeserializeFromString<Dictionary<string, bool>>(xmlDict["Visibility"]);
+        Bakability = geomObject.DeserializeFromString<Dictionary<string, bool>>(xmlDict["Bakability"]);
+        GH_GeometryGroup grp = new GH_GeometryGroup();
     }
     
     //object properties
@@ -344,14 +369,14 @@ public class geomObjGoo : GH_GeometricGoo<geomObject>, IGH_PreviewData, IGH_Bake
             castDict.Add("name", this.Value.name);//the name of the object
 
             //now adding data, numbers, vectors and text
-            castDict.Add("data", JsonConvert.SerializeObject(this.Value.data));
-            castDict.Add("number", JsonConvert.SerializeObject(this.Value.number));
-            castDict.Add("text", JsonConvert.SerializeObject(this.Value.text));
-            castDict.Add("vector", JsonConvert.SerializeObject(this.Value.vector));
+            castDict.Add("data", geomObject.SerializeToString(this.Value.data));
+            castDict.Add("number", geomObject.SerializeToString(this.Value.number));
+            castDict.Add("text", geomObject.SerializeToString(this.Value.text));
+            castDict.Add("vector", geomObject.SerializeToString(this.Value.vector));
 
             //now adding visibility and bakability settings
-            castDict.Add("Visibility", JsonConvert.SerializeObject(this.Value.Visibility));
-            castDict.Add("Bakability", JsonConvert.SerializeObject(this.Value.Bakability));
+            castDict.Add("Visibility", geomObject.SerializeToString(this.Value.Visibility));
+            castDict.Add("Bakability", geomObject.SerializeToString(this.Value.Bakability));
 
             target = (Q)(Object)castDict;
             return true;

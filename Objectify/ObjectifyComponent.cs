@@ -480,7 +480,6 @@ namespace Objectify
               "Reads an Object",
               "Data", "Objectify")
         {
-            Params.ParameterChanged += new GH_ComponentParamServer.ParameterChangedEventHandler(OnParameterChanged);
             mainParam.Optional = true;
         }
         
@@ -578,7 +577,7 @@ namespace Objectify
         protected virtual void OnParameterChanged(object sender, GH_ParamServerEventArgs e)
         {
             //mainParam.reset();
-            ExpireSolution(true);
+            ExpireSolution(false);
         }
 
         //came with the template - no clue what it is - find out later
