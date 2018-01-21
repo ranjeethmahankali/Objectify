@@ -132,12 +132,12 @@ namespace Objectify
               "Creates an object out of the inpupt geometry",
               "Data", "Objectify")
         {
-            obj = new geomObject(this.NickName);
+            obj = new GeomObject(this.NickName);
             Params.ParameterChanged += new GH_ComponentParamServer.ParameterChangedEventHandler(OnParameterChanged);
         }
 
         //this is the geomObject which will hold the data being outputted by this component
-        private geomObject obj{get; set;}
+        private GeomObject obj{get; set;}
         private List<string> allKeys
         {
             get
@@ -230,7 +230,7 @@ namespace Objectify
             }
 
             // Finally assign the spiral to the output parameter.
-            DA.SetData(0, new geomObjGoo(obj));
+            DA.SetData(0, new GeomObjGoo(obj));
             //DA.SetDataList(1, obj.getGeometry());
         }
         //this updates the data to the obj of this instance
@@ -303,7 +303,7 @@ namespace Objectify
                 }
             }
 
-            this.obj = new geomObject(this.NickName, dataDict);
+            this.obj = new GeomObject(this.NickName, dataDict);
             this.obj.number = numDict;
             this.obj.text = textDict;
             this.obj.vector = vecDict;
@@ -372,7 +372,7 @@ namespace Objectify
     }
 
     //this class is the custom parameter class that shows options in the context menu
-    public class memberSelect : GH_Param<geomObjGoo>
+    public class memberSelect : GH_Param<GeomObjGoo>
     {
         //constructors
         public memberSelect(string nickname):
@@ -414,7 +414,7 @@ namespace Objectify
         }
         
         //this updates the context menu to member names and then sets the current member to the first one if it is unset
-        public void update(geomObject obj)
+        public void update(GeomObject obj)
         {
             this.options.Clear();
             foreach(string key in obj.data.Keys)
@@ -441,9 +441,9 @@ namespace Objectify
             }
         }
         //this resets the parameter - clears the context menu options and sets the current member name to empty string
-        public void reset(geomObjGoo goo)
+        public void reset(GeomObjGoo goo)
         {
-            geomObject obj = goo.Value;
+            GeomObject obj = goo.Value;
             this.update(obj);
             this.OnDisplayExpired(true);
         }
@@ -501,7 +501,7 @@ namespace Objectify
         // This is the method that actually does the work.
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            geomObjGoo objGoo = new geomObjGoo();
+            GeomObjGoo objGoo = new GeomObjGoo();
 
             if (!DA.GetData(0, ref objGoo))
             {
@@ -509,7 +509,7 @@ namespace Objectify
                 return;
             }
 
-            geomObject obj = objGoo.Value;
+            GeomObject obj = objGoo.Value;
             if (obj.dataCount == 0)
             {
                 //AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Nothing to show");
@@ -621,12 +621,12 @@ namespace Objectify
         public MutateObject():
             base("Mutate Object", "Mutate", "Mutate an object by changing one or more members", "Data", "Objectify")
         {
-            obj = new geomObject(this.NickName);
+            obj = new GeomObject(this.NickName);
             Params.ParameterChanged += new GH_ComponentParamServer.ParameterChangedEventHandler(OnParameterChanged);
         }
 
         //properties
-        private geomObject obj { get; set; }        
+        private GeomObject obj { get; set; }        
         
         //this function forces GH to recompute the component - bound to change events
         protected virtual void OnParameterChanged(object sender, GH_ParamServerEventArgs e)
@@ -655,7 +655,7 @@ namespace Objectify
         /// This is the method that actually does the work.
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            geomObjGoo objGoo = new geomObjGoo();
+            GeomObjGoo objGoo = new GeomObjGoo();
 
             if (!DA.GetData(0, ref objGoo))
             {
@@ -670,7 +670,7 @@ namespace Objectify
                 return;
             }
             //making a copy of the object in case mutation fails
-            geomObject obj_original = obj.fresh(true);
+            GeomObject obj_original = obj.fresh(true);
 
             memberSelect param0 = Params.Input[0] as memberSelect;
             param0.update(obj);
@@ -680,7 +680,7 @@ namespace Objectify
             if (!DA.GetDataList<Object>(1, obj_in))
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, "The member was not replaced: No replacement received");
-                DA.SetData(0, new geomObjGoo(obj_original));
+                DA.SetData(0, new GeomObjGoo(obj_original));
                 return;
             }
             //Debug.WriteLine(obj_in[0] == null);
@@ -746,7 +746,7 @@ namespace Objectify
                 catch (Exception e)
                 {
                     AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Objectofy does not support this data type");
-                    DA.SetData(0, new geomObjGoo(obj_original));
+                    DA.SetData(0, new GeomObjGoo(obj_original));
                     return;
                 }
             }
@@ -755,7 +755,7 @@ namespace Objectify
             this.obj.Visibility[param0.NickName] = param1.option["Visible"];
             this.obj.Bakability[param0.NickName] = param1.option["Bakable"];
 
-            DA.SetData(0, new geomObjGoo(obj));
+            DA.SetData(0, new GeomObjGoo(obj));
         }
 
         //these methods are for (de)serialization - for when reading and writing to file

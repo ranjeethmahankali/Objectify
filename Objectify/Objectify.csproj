@@ -69,7 +69,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="dataTypes.cs" />
+    <Compile Include="GeomObject.cs" />
+    <Compile Include="GeomObjectGoo.cs" />
     <Compile Include="ObjectifyComponent.cs" />
     <Compile Include="ObjectifyInfo.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

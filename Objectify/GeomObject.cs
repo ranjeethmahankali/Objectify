@@ -16,7 +16,7 @@ using System.IO;
 using System.Text;
 
 //my custom datatype
-public class geomObject
+public class GeomObject
 {
     //sml serialization method
     public static string SerializeToString(object obj)
@@ -39,7 +39,7 @@ public class geomObject
     }
 
     //constructors
-    public geomObject()
+    public GeomObject()
     {
         name = "None";//this is the default value for name
         data = new Dictionary<string, GH_GeometryGroup>();//this is the default empty dictionary
@@ -49,27 +49,27 @@ public class geomObject
         Visibility = new Dictionary<string, bool>();
         Bakability = new Dictionary<string, bool>();
     }
-    public geomObject(string nameStr) : this()
+    public GeomObject(string nameStr) : this()
     {
         name = nameStr;
     }
-    public geomObject(string nameStr, Dictionary<string, GH_GeometryGroup> geomDictionary):this(nameStr)
+    public GeomObject(string nameStr, Dictionary<string, GH_GeometryGroup> geomDictionary):this(nameStr)
     {
         data = geomDictionary;
     }
     //this constructor is for the cases where this object has to be reconstructed from
     //a dictionary with json strings of all its fields
-    public geomObject(Dictionary<string, string> xmlDict)
+    public GeomObject(Dictionary<string, string> xmlDict)
     {
         name = xmlDict["name"];//this is the default value for name
-        data = geomObject.DeserializeFromString<Dictionary<string, GH_GeometryGroup>>(xmlDict["data"]);
-        number = geomObject.DeserializeFromString<Dictionary<string, List<double>>>(xmlDict["number"]);
-        text = geomObject.DeserializeFromString<Dictionary<string, List<string>>>(xmlDict["text"]);
-        vector = geomObject.DeserializeFromString<Dictionary<string, List<GH_Vector>>>(xmlDict["vector"]);
+        data = GeomObject.DeserializeFromString<Dictionary<string, GH_GeometryGroup>>(xmlDict["data"]);
+        number = GeomObject.DeserializeFromString<Dictionary<string, List<double>>>(xmlDict["number"]);
+        text = GeomObject.DeserializeFromString<Dictionary<string, List<string>>>(xmlDict["text"]);
+        vector = GeomObject.DeserializeFromString<Dictionary<string, List<GH_Vector>>>(xmlDict["vector"]);
         
         //now getting the visibility and bakability settings
-        Visibility = geomObject.DeserializeFromString<Dictionary<string, bool>>(xmlDict["Visibility"]);
-        Bakability = geomObject.DeserializeFromString<Dictionary<string, bool>>(xmlDict["Bakability"]);
+        Visibility = GeomObject.DeserializeFromString<Dictionary<string, bool>>(xmlDict["Visibility"]);
+        Bakability = GeomObject.DeserializeFromString<Dictionary<string, bool>>(xmlDict["Bakability"]);
         GH_GeometryGroup grp = new GH_GeometryGroup();
     }
     
@@ -84,10 +84,10 @@ public class geomObject
     public Dictionary<string, bool> Bakability;
 
     //this copies the object - all data except geometry unless the bool is true
-    public geomObject fresh(bool withGeom = false)
+    public GeomObject fresh(bool withGeom = false)
     {
         //have to manually recreate the object to avoid references and create a true deep copy
-        geomObject nObj = new geomObject(this.name);
+        GeomObject nObj = new GeomObject(this.name);
 
         if (withGeom)
         {
@@ -238,9 +238,9 @@ public class geomObject
 
     //all kinds of operations done on this have to be defined
     //this is for transform
-    public geomObject Transform(Transform xform)
+    public GeomObject Transform(Transform xform)
     {
-        geomObject xObj = fresh();
+        GeomObject xObj = fresh();
         foreach (string key in data.Keys)
         {
             GH_GeometryGroup xGeom = (GH_GeometryGroup)data[key].Transform(xform);
@@ -250,9 +250,9 @@ public class geomObject
         return xObj;
     }
     //this is for morphing - dont even know what it is, but I dont have to
-    public geomObject Morph(SpaceMorph morph)
+    public GeomObject Morph(SpaceMorph morph)
     {
-        geomObject mObj = fresh();
+        GeomObject mObj = fresh();
         foreach (string key in data.Keys)
         {
             GH_GeometryGroup mGeom = (GH_GeometryGroup)data[key].Morph(morph);
@@ -262,9 +262,9 @@ public class geomObject
         return mObj;
     }
     //this is for duplication
-    public geomObject DuplicateGeometry()
+    public GeomObject DuplicateGeometry()
     {
-        geomObject dObj = fresh();
+        GeomObject dObj = fresh();
         foreach (string key in data.Keys)
         {
             GH_GeometryGroup dGeom = (GH_GeometryGroup)data[key].DuplicateGeometry();
@@ -272,127 +272,5 @@ public class geomObject
         }
 
         return dObj;
-    }
-}
-
-//GeometricGoo wrapper
-public class geomObjGoo : GH_GeometricGoo<geomObject>, IGH_PreviewData, IGH_BakeAwareData
-{
-    //all the different constructors
-    public geomObjGoo()
-    {
-        this.Value = new geomObject();
-    }
-    public geomObjGoo(geomObject obj)
-    {
-        if (obj == null) { obj = new geomObject(); }
-        this.Value = obj;
-    }
-    public geomObjGoo(Dictionary<string, string> jsonStr)
-    {
-        geomObject obj;
-        if (jsonStr == null) { obj = new geomObject(); }
-        else{obj = new geomObject(jsonStr);}
-
-        this.Value = obj;
-    }
-    //I have to implement these properties for using the GH_Geometric_Goo class
-    public override BoundingBox Boundingbox
-    {
-        get
-        {
-            if (this.Value == null) { return BoundingBox.Empty; }
-            GH_GeometryGroup geoGrp = this.Value.getGeometryGroup("bakable");
-            if (geoGrp == null) { return BoundingBox.Empty; }
-            return geoGrp.Boundingbox;
-        }
-    }
-    public override string TypeDescription { get { return "This is the Main data type used by the Objectify Component. It inherits the from GH_GeometricGoo"; } }
-    public override string TypeName { get { return "Geometry Object"; } }
-
-    //these are my implementations / overrides for the geometric operations
-    //this is the bounding box
-    public override BoundingBox GetBoundingBox(Transform xform)
-    {
-        return this.Value.getGeometryGroup("bakable").GetBoundingBox(xform);
-    }
-    //this is the transformations
-    public override IGH_GeometricGoo Transform(Transform xform)
-    {
-        return new geomObjGoo(this.Value.Transform(xform));
-    }
-    //this is the morph function
-    public override IGH_GeometricGoo Morph(SpaceMorph morph)
-    {
-        return new geomObjGoo(this.Value.Morph(morph));
-    }
-    //this is for duplication
-    public override IGH_GeometricGoo DuplicateGeometry()
-    {
-        return new geomObjGoo(this.Value.DuplicateGeometry());
-    }
-    //this is for all printing purposes
-    public override string ToString()
-    {
-        return this.Value.ToString();
-    }
-
-    //these are all the implementations for using IGH_previewData class - to tell GH how to show my object in the viewport
-    //this is the clippng box
-    public BoundingBox ClippingBox
-    {
-        get { return Boundingbox; }
-    }
-    public void DrawViewportMeshes(GH_PreviewMeshArgs args)
-    {
-        this.Value.getGeometryGroup("visible").DrawViewportMeshes(args);
-    }
-    public void DrawViewportWires(GH_PreviewWireArgs args)
-    {
-        this.Value.getGeometryGroup("visible").DrawViewportWires(args);
-    }
-
-    //these are for casting my datatype into others
-    public override bool CastTo<Q>(out Q target)
-    {
-        //whatever Q is, if a GH_GeometryGroup can be cast into it, then we are happy
-        //we use GH_GeometryGroup as out mediator type
-        if (typeof(Q).IsAssignableFrom(typeof(GH_GeometryGroup)))
-        {
-            target = (Q)(Object)this.Value.getGeometryGroup("both");
-            //casting was successful
-            return true;
-        }
-        else if (typeof(Q).IsAssignableFrom(typeof(Dictionary<string, string>)))
-        {
-            Dictionary<string, string> castDict = new Dictionary<string, string>();
-            castDict.Add("name", this.Value.name);//the name of the object
-
-            //now adding data, numbers, vectors and text
-            castDict.Add("data", geomObject.SerializeToString(this.Value.data));
-            castDict.Add("number", geomObject.SerializeToString(this.Value.number));
-            castDict.Add("text", geomObject.SerializeToString(this.Value.text));
-            castDict.Add("vector", geomObject.SerializeToString(this.Value.vector));
-
-            //now adding visibility and bakability settings
-            castDict.Add("Visibility", geomObject.SerializeToString(this.Value.Visibility));
-            castDict.Add("Bakability", geomObject.SerializeToString(this.Value.Bakability));
-
-            target = (Q)(Object)castDict;
-            return true;
-        }
-        else
-        {
-            //we cannot cast it so we give up
-            target = default(Q);
-            return false;
-        }
-    }
-
-    //this is when user decides to bake our object using the interface BakeAwareData
-    public bool BakeGeometry(Rhino.RhinoDoc doc, Rhino.DocObjects.ObjectAttributes att, out Guid obj_guid)
-    {
-        obj_guid = new Guid();
-        return this.Value.getGeometryGroup("bakable").BakeGeometry(doc, att, ref obj_guid);
     }
 }
