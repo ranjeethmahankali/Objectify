@@ -42,7 +42,7 @@ namespace Objectify
             get
             {
                 //Return a string identifying you or your company.
-                return "";
+                return "Ranjeeth Mahankali";
             }
         }
         public override string AuthorContact
@@ -50,7 +50,7 @@ namespace Objectify
             get
             {
                 //Return a string representing your preferred contact details.
-                return "";
+                return "rnjthmhnkl@gmail.com";
             }
         }
     }
