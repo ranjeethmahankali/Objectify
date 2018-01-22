@@ -20,7 +20,7 @@ namespace Objectify
     //GeometricGoo wrapper
     public class GeomObjGoo : GH_GeometricGoo<GeomObject>, IGH_PreviewData, IGH_BakeAwareData
     {
-        //all the different constructors
+        #region constructors
         public GeomObjGoo()
         {
             this.Value = new GeomObject();
@@ -38,13 +38,15 @@ namespace Objectify
 
             this.Value = obj;
         }
-        //I have to implement these properties for using the GH_Geometric_Goo class
+        #endregion
+
+        #region base class implementation
         public override BoundingBox Boundingbox
         {
             get
             {
                 if (this.Value == null) { return BoundingBox.Empty; }
-                GH_GeometryGroup geoGrp = this.Value.getGeometryGroup("bakable");
+                GH_GeometryGroup geoGrp = this.Value.GetGeometryGroup("bakable");
                 if (geoGrp == null) { return BoundingBox.Empty; }
                 return geoGrp.Boundingbox;
             }
@@ -56,7 +58,7 @@ namespace Objectify
         //this is the bounding box
         public override BoundingBox GetBoundingBox(Transform xform)
         {
-            return this.Value.getGeometryGroup("bakable").GetBoundingBox(xform);
+            return this.Value.GetGeometryGroup("bakable").GetBoundingBox(xform);
         }
         //this is the transformations
         public override IGH_GeometricGoo Transform(Transform xform)
@@ -73,26 +75,34 @@ namespace Objectify
         {
             return new GeomObjGoo(this.Value.DuplicateGeometry());
         }
-        //this is for all printing purposes
         public override string ToString()
         {
             return this.Value.ToString();
         }
+        #endregion
 
-        //these are all the implementations for using IGH_previewData class - to tell GH how to show my object in the viewport
-        //this is the clippng box
+        #region IGH_PreviewData implementation
         public BoundingBox ClippingBox
         {
             get { return Boundingbox; }
         }
         public void DrawViewportMeshes(GH_PreviewMeshArgs args)
         {
-            this.Value.getGeometryGroup("visible").DrawViewportMeshes(args);
+            this.Value.GetGeometryGroup("visible").DrawViewportMeshes(args);
         }
         public void DrawViewportWires(GH_PreviewWireArgs args)
         {
-            this.Value.getGeometryGroup("visible").DrawViewportWires(args);
+            this.Value.GetGeometryGroup("visible").DrawViewportWires(args);
         }
+        #endregion
+
+        #region IGH_BakeAwareData implementation
+        public bool BakeGeometry(Rhino.RhinoDoc doc, Rhino.DocObjects.ObjectAttributes att, out Guid obj_guid)
+        {
+            obj_guid = new Guid();
+            return this.Value.GetGeometryGroup("bakable").BakeGeometry(doc, att, ref obj_guid);
+        }
+        #endregion
 
         //these are for casting my datatype into others
         public override bool CastTo<Q>(out Q target)
@@ -101,7 +111,7 @@ namespace Objectify
             //we use GH_GeometryGroup as out mediator type
             if (typeof(Q).IsAssignableFrom(typeof(GH_GeometryGroup)))
             {
-                target = (Q)(Object)this.Value.getGeometryGroup("both");
+                target = (Q)(Object)this.Value.GetGeometryGroup("both");
                 //casting was successful
                 return true;
             }
@@ -117,8 +127,8 @@ namespace Objectify
                 castDict.Add("vector", GeomObject.SerializeToString(this.Value.vector));
 
                 //now adding visibility and bakability settings
-                castDict.Add("Visibility", GeomObject.SerializeToString(this.Value.Visibility));
-                castDict.Add("Bakability", GeomObject.SerializeToString(this.Value.Bakability));
+                castDict.Add("Visibility", GeomObject.SerializeToString(this.Value._visibility));
+                castDict.Add("Bakability", GeomObject.SerializeToString(this.Value._bakability));
 
                 target = (Q)(Object)castDict;
                 return true;
@@ -129,13 +139,6 @@ namespace Objectify
                 target = default(Q);
                 return false;
             }
-        }
-
-        //this is when user decides to bake our object using the interface BakeAwareData
-        public bool BakeGeometry(Rhino.RhinoDoc doc, Rhino.DocObjects.ObjectAttributes att, out Guid obj_guid)
-        {
-            obj_guid = new Guid();
-            return this.Value.getGeometryGroup("bakable").BakeGeometry(doc, att, ref obj_guid);
         }
     }
 }

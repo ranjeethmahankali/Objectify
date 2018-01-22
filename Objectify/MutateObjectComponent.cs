@@ -62,14 +62,14 @@ namespace Objectify
                 return;
             }
 
-            this.obj = objGoo.Value.fresh(true);
-            if (obj.dataCount == 0)
+            this.obj = objGoo.Value.Fresh(true);
+            if (obj.DataCount == 0)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "The Object is empty");
                 return;
             }
             //making a copy of the object in case mutation fails
-            GeomObject obj_original = obj.fresh(true);
+            GeomObject obj_original = obj.Fresh(true);
 
             MemberSelect param0 = Params.Input[0] as MemberSelect;
             param0.update(obj);
@@ -91,14 +91,14 @@ namespace Objectify
             }
 
             MemberInput param1 = Params.Input[1] as MemberInput;
-            if (!obj.hasMember(param0.NickName))
+            if (!obj.HasMember(param0.NickName))
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "The object does not have a member with this name !");
                 return;
             }
 
             //deleting the old member
-            obj.removeMember(param0.NickName);
+            obj.RemoveMember(param0.NickName);
             param1.isGeometry = false;
             if (obj_in[0].GetType() == typeof(GH_Number))
             {
@@ -151,8 +151,8 @@ namespace Objectify
             }
 
             //now updating the visibility and bakability settings
-            this.obj.Visibility[param0.NickName] = param1.option["Visible"];
-            this.obj.Bakability[param0.NickName] = param1.option["Bakable"];
+            this.obj._visibility[param0.NickName] = param1.option["Visible"];
+            this.obj._bakability[param0.NickName] = param1.option["Bakable"];
 
             DA.SetData(0, new GeomObjGoo(obj));
         }

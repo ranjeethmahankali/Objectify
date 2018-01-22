@@ -52,7 +52,7 @@ namespace Objectify
             }
 
             GeomObject obj = objGoo.Value;
-            if (obj.dataCount == 0)
+            if (obj.DataCount == 0)
             {
                 //AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Nothing to show");
                 mainParam.reset(objGoo);

@@ -113,7 +113,7 @@ namespace Objectify
 
             UpdateData(DA);
             // We should now validate the data and warn the user if invalid data is supplied.
-            if (obj.dataCount == 0)
+            if (obj.DataCount == 0)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, "No data received");
                 //return;
@@ -203,13 +203,13 @@ namespace Objectify
         //update settings
         private void updateSettings()
         {
-            this.obj.Bakability.Clear();
-            this.obj.Visibility.Clear();
+            this.obj._bakability.Clear();
+            this.obj._visibility.Clear();
             for (int i = 0; i < Params.Input.Count; i++)
             {
                 MemberInput param = Params.Input[i] as MemberInput;
-                this.obj.Bakability.Add(param.NickName, param.option["Bakable"]);
-                this.obj.Visibility.Add(param.NickName, param.option["Visible"]);
+                this.obj._bakability.Add(param.NickName, param.option["Bakable"]);
+                this.obj._visibility.Add(param.NickName, param.option["Visible"]);
             }
         }
 
