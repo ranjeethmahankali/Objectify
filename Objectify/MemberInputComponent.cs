@@ -16,6 +16,23 @@ namespace Objectify
     //this is the custom parameter class for the objectify component
     public class MemberInput : GH_Param<IGH_Goo>
     {
+        #region fields
+        //visibility and bakability settings
+        private Dictionary<string, bool> _settings;
+        private bool _hasGeometry = false;
+        #endregion
+
+        #region properties
+        public bool HasGeometry
+        {
+            get { return _hasGeometry; }
+            set { _hasGeometry = value; }
+        }
+        public Dictionary<string, bool> Settings
+        {
+            get { return _settings; }
+        }
+        #endregion
         //constructors
         public MemberInput() :
             base("Member Input", "Label", "Input data", "Data", "Objectify", GH_ParamAccess.list)
@@ -24,12 +41,11 @@ namespace Objectify
             this.Optional = true;
             this.Access = GH_ParamAccess.list;
 
-            this.option = new Dictionary<string, bool>();
-            option.Add("Visible", true);
-            option.Add("Bakable", true);
-
-            this.isGeometry = false;
+            this._settings = new Dictionary<string, bool>();
+            _settings.Add("Visible", true);
+            _settings.Add("Bakable", true);
         }
+
         public MemberInput(string nickname) : this()//using the 0 arg constructor and building on top of it.
         {
             this.NickName = nickname;
@@ -43,17 +59,14 @@ namespace Objectify
         {
             return new GH_ObjectWrapper();
         }
-        //properties
-        public Dictionary<string, bool> option;
-        public bool isGeometry;
 
         //overriding the options shown in the menu
         public override void AppendAdditionalMenuItems(ToolStripDropDown menu)
         {
             this.Menu_AppendDisconnectWires(menu);
-            foreach (string opName in option.Keys)
+            foreach (string opName in _settings.Keys)
             {
-                Menu_AppendItem(menu, opName, optionClickHandler, isGeometry, isGeometry && option[opName]);
+                Menu_AppendItem(menu, opName, optionClickHandler, _hasGeometry, _hasGeometry && _settings[opName]);
             }
         }
         //this is what happens when the option is clicked
@@ -66,7 +79,7 @@ namespace Objectify
                 return; // Weird...
             }
 
-            if (!this.option.ContainsKey(item.Text))
+            if (!this._settings.ContainsKey(item.Text))
             {
                 return; //unrecognized option
             }
@@ -75,7 +88,7 @@ namespace Objectify
             string desc = "Changed " + item.Text + " of " + this.NickName;
             RecordUndoEvent(desc);
             //changing the option now.
-            this.option[item.Text] = !(this.option[item.Text]);
+            this._settings[item.Text] = !(this._settings[item.Text]);
             this.OnDisplayExpired(true);
             this.ExpireSolution(true);
         }
@@ -87,7 +100,7 @@ namespace Objectify
             try
             {
                 // converting the options and states to json to be saved
-                string jsonStr = JsonConvert.SerializeObject(this.option);
+                string jsonStr = JsonConvert.SerializeObject(this._settings);
                 writer.SetString("Options", jsonStr);
             }
             catch (Exception e)
@@ -107,7 +120,7 @@ namespace Objectify
                 //the options were not serialized when the file was saved last time
                 return base.Read(reader);
             }
-            this.option = JsonConvert.DeserializeObject<Dictionary<string, bool>>(optString);
+            this._settings = JsonConvert.DeserializeObject<Dictionary<string, bool>>(optString);
 
             return base.Read(reader);
         }

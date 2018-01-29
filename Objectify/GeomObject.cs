@@ -18,7 +18,7 @@ using System.Text;
 public enum GeometryFilter
 {
     ALL,
-    BAKE,
+    BAKABLE,
     VISIBLE,
     VISIBLE_AND_BAKABLE
 }
@@ -27,45 +27,43 @@ public enum GeometryFilter
 public class GeomObject
 {
     #region fields
-    public string name;
-    public Dictionary<string, GH_GeometryGroup> data;
-    public Dictionary<string, List<double>> number;
-    public Dictionary<string, List<string>> text;
-    public Dictionary<string, List<GH_Vector>> vector;
-    public Dictionary<string, bool> _visibility;
-    public Dictionary<string, bool> _bakability;
+    private string _name;
+    private Dictionary<string, List<IGH_Goo>> _memberDict = new Dictionary<string, List<IGH_Goo>>();
+    private Dictionary<string, bool> _visibility;
+    private Dictionary<string, bool> _bakability;
     #endregion
     #region properties
-    public int DataCount { get { return (this.data.Count + this.number.Count + this.text.Count + this.vector.Count); } }
+    public string Name
+    {
+        get { return _name; }
+        set { _name = value; }
+    }
+    //public int DataCount { get { return (this._data.Count + this.number.Count + this.text.Count + this.vector.Count); } }
+    public Dictionary<string, List<IGH_Goo>> MemberDict { get { return _memberDict; } }
+    public Dictionary<string, bool> Visibility { get { return _visibility; } }
+    public Dictionary<string, bool> Bakability { get { return _bakability; } }
     #endregion
     #region constructors
     public GeomObject()
     {
-        name = "None";//this is the default value for name
-        data = new Dictionary<string, GH_GeometryGroup>();//this is the default empty dictionary
-        number = new Dictionary<string, List<double>>();
-        text = new Dictionary<string, List<string>>();
-        vector = new Dictionary<string, List<GH_Vector>>();
+        _name = "None";//this is the default value for name
         _visibility = new Dictionary<string, bool>();
         _bakability = new Dictionary<string, bool>();
     }
     public GeomObject(string nameStr) : this()
     {
-        name = nameStr;
+        _name = nameStr;
     }
-    public GeomObject(string nameStr, Dictionary<string, GH_GeometryGroup> geomDictionary) : this(nameStr)
+    public GeomObject(string nameStr, Dictionary<string, List<IGH_Goo>> dataDict) : this(nameStr)
     {
-        data = geomDictionary;
+        _memberDict = dataDict;
     }
     //this constructor is for the cases where this object has to be reconstructed from
     //a dictionary with json strings of all its fields
     public GeomObject(Dictionary<string, string> xmlDict)
     {
-        name = xmlDict["name"];//this is the default value for name
-        data = DeserializeFromString<Dictionary<string, GH_GeometryGroup>>(xmlDict["data"]);
-        number = DeserializeFromString<Dictionary<string, List<double>>>(xmlDict["number"]);
-        text = DeserializeFromString<Dictionary<string, List<string>>>(xmlDict["text"]);
-        vector = DeserializeFromString<Dictionary<string, List<GH_Vector>>>(xmlDict["vector"]);
+        _name = xmlDict["name"];//this is the default value for name
+        _memberDict = DeserializeFromString<Dictionary<string, List<IGH_Goo>>>(xmlDict["data"]);
 
         //now getting the visibility and bakability settings
         _visibility = DeserializeFromString<Dictionary<string, bool>>(xmlDict["Visibility"]);
@@ -94,113 +92,35 @@ public class GeomObject
     }
 
     //this copies the object - all data except geometry unless the bool is true
-    public GeomObject Fresh(bool withGeom = false)
+    public GeomObject Duplicate()
     {
         //have to manually recreate the object to avoid references and create a true deep copy
-        GeomObject nObj = new GeomObject(this.name);
+        GeomObject nObj = new GeomObject(this._name);
 
-        if (withGeom)
-        {
-            foreach (string key in this.data.Keys) { nObj.data.Add(key, this.data[key]); }
-        }
-
-        foreach (string key in this.number.Keys) { nObj.number.Add(key, this.number[key]); }
-        foreach (string key in this.text.Keys) { nObj.text.Add(key, this.text[key]); }
-        foreach (string key in this.vector.Keys) { nObj.vector.Add(key, this.vector[key]); }
-
+        foreach (string key in this._memberDict.Keys) { nObj._memberDict.Add(key, this._memberDict[key]); }
         foreach (string key in this._visibility.Keys) { nObj._visibility.Add(key, this._visibility[key]); }
         foreach (string key in this._bakability.Keys) { nObj._bakability.Add(key, this._bakability[key]); }
 
         return nObj;
     }
-    //returns the type of any key (member name) that is passed as param
-    public Type GetTypeOf(string key)
-    {
-        Type listType = null;
-        if (this.data.ContainsKey(key))
-        {
-            Type[] args = this.data.GetType().GetGenericArguments();
-            return args[1];
-        }
-        else if (this.number.ContainsKey(key))
-        {
-            Type[] args = this.number.GetType().GetGenericArguments();
-            listType = args[1];
-        }
-        else if (this.text.ContainsKey(key))
-        {
-            Type[] args = this.text.GetType().GetGenericArguments();
-            listType = args[1];
-        }
-        else if (this.vector.ContainsKey(key))
-        {
-            Type[] args = this.vector.GetType().GetGenericArguments();
-            listType = args[1];
-        }
-        else
-        {
-            return null;
-        }
-
-        //Debug.WriteLine(listType.ToString());
-        Type itemType = listType.GetGenericArguments().Single();
-
-        return itemType;
-    }
     //removes the data with that key from this object
-    public void RemoveMember(string key)
-    {
-        if (this.data.ContainsKey(key))
-        {
-            this.data.Remove(key);
-            return;
-        }
-        else if (this.number.ContainsKey(key))
-        {
-            this.number.Remove(key);
-            return;
-        }
-        else if (this.text.ContainsKey(key))
-        {
-            this.text.Remove(key);
-            return;
-        }
-        else if (this.vector.ContainsKey(key))
-        {
-            this.vector.Remove(key);
-            return;
-        }
-    }
-    //returns whether this object has a member with that name
-    public bool HasMember(string key)
-    {
-        return (
-            this.data.ContainsKey(key) ||
-            this.number.ContainsKey(key) ||
-            this.text.ContainsKey(key) ||
-            this.vector.ContainsKey(key)
-            );
-    }
 
     //this function gets all the geometry as a group (nested if the members are already groups themselves))
-    public GH_GeometryGroup GetGeometryGroup(string filter = "all")
+    public GH_GeometryGroup GetGeometryGroup(GeometryFilter filter = GeometryFilter.ALL)
     {
-        //return rmpty group if the filter is invalid
-        List<string> validFilters = new List<string>(new string[] { "visible", "bakable", "both", "all" });
-        if (!validFilters.Contains(filter)) { return new GH_GeometryGroup(); }
-
         GH_GeometryGroup geoGrp = new GH_GeometryGroup();
-        foreach (string key in data.Keys)
+        foreach (string key in _memberDict.Keys)
         {
             if (!this._visibility.ContainsKey(key) || !this._bakability.ContainsKey(key)) { continue; }
-            if (filter == "visible" && !this._visibility[key]) { continue; }
-            if (filter == "bakable" && !this._bakability[key]) { continue; }
-            if (filter == "both" && (!this._bakability[key] && !this._visibility[key])) { continue; }
+            if (filter == GeometryFilter.VISIBLE && !this._visibility[key]) { continue; }
+            if (filter == GeometryFilter.BAKABLE && !this._bakability[key]) { continue; }
+            if (filter == GeometryFilter.VISIBLE_AND_BAKABLE && (!this._bakability[key] && !this._visibility[key])) { continue; }
 
             GH_GeometryGroup subGrp = new GH_GeometryGroup();
-            for (int i = 0; i < data[key].Objects.Count; i++)
+            foreach(var goo in _memberDict[key])
             {
-                subGrp.Objects.Add(data[key].Objects[i]);
+                if (!typeof(IGH_GeometricGoo).IsAssignableFrom(goo.GetType())) { continue; }
+                subGrp.Objects.Add((IGH_GeometricGoo)goo);
             }
             geoGrp.Objects.Add(subGrp);
         }
@@ -210,31 +130,10 @@ public class GeomObject
     //this is for when the user prints the object onto a panel
     public override string ToString()
     {
-        string output = name + " object with " + this.DataCount.ToString() + " members:{";
+        string output = _name + "(object) with " + this.MemberDict.Count.ToString() + " members:{";
         int counter = 0;
-        //all the geometry members
-        foreach (string key in data.Keys)
-        {
-            if (counter != 0) { output += ", "; }
-            output += key;
-            counter++;
-        }
-        //all the numbers
-        foreach (string key in number.Keys)
-        {
-            if (counter != 0) { output += ", "; }
-            output += key;
-            counter++;
-        }
-        //all the text
-        foreach (string key in text.Keys)
-        {
-            if (counter != 0) { output += ", "; }
-            output += key;
-            counter++;
-        }
-        //all the vectors
-        foreach (string key in vector.Keys)
+        //all the members
+        foreach (string key in _memberDict.Keys)
         {
             if (counter != 0) { output += ", "; }
             output += key;
@@ -242,18 +141,23 @@ public class GeomObject
         }
 
         output += "}";
-
         return output;
     }
-
     //this is for transform
     public GeomObject Transform(Transform xform)
     {
-        GeomObject xObj = Fresh();
-        foreach (string key in data.Keys)
+        GeomObject xObj = Duplicate();
+        foreach (string key in xObj.MemberDict.Keys)
         {
-            GH_GeometryGroup xGeom = (GH_GeometryGroup)data[key].Transform(xform);
-            xObj.data.Add(key, xGeom);
+            List<IGH_Goo> newData = new List<IGH_Goo>();
+            for(int i = 0; i < xObj.MemberDict[key].Count; i++)
+            {
+                if (typeof(IGH_GeometricGoo).IsAssignableFrom(xObj.MemberDict[key][i].GetType()))
+                {
+                    IGH_GeometricGoo geom = (IGH_GeometricGoo)xObj.MemberDict[key][i];
+                    xObj.MemberDict[key][i] = geom.Transform(xform);
+                }
+            }
         }
 
         return xObj;
@@ -261,11 +165,18 @@ public class GeomObject
     //this is for morphing - dont even know what it is, but I dont have to
     public GeomObject Morph(SpaceMorph morph)
     {
-        GeomObject mObj = Fresh();
-        foreach (string key in data.Keys)
+        GeomObject mObj = Duplicate();
+        foreach (string key in mObj.MemberDict.Keys)
         {
-            GH_GeometryGroup mGeom = (GH_GeometryGroup)data[key].Morph(morph);
-            mObj.data.Add(key, mGeom);
+            List<IGH_Goo> newData = new List<IGH_Goo>();
+            for (int i = 0; i < mObj.MemberDict[key].Count; i++)
+            {
+                if (typeof(IGH_GeometricGoo).IsAssignableFrom(mObj.MemberDict[key][i].GetType()))
+                {
+                    IGH_GeometricGoo geom = (IGH_GeometricGoo)mObj.MemberDict[key][i];
+                    mObj.MemberDict[key][i] = geom.Morph(morph);
+                }
+            }
         }
 
         return mObj;
@@ -273,11 +184,18 @@ public class GeomObject
     //this is for duplication
     public GeomObject DuplicateGeometry()
     {
-        GeomObject dObj = Fresh();
-        foreach (string key in data.Keys)
+        GeomObject dObj = Duplicate();
+        foreach (string key in dObj.MemberDict.Keys)
         {
-            GH_GeometryGroup dGeom = (GH_GeometryGroup)data[key].DuplicateGeometry();
-            dObj.data.Add(key, dGeom);
+            List<IGH_Goo> newData = new List<IGH_Goo>();
+            for (int i = 0; i < dObj.MemberDict[key].Count; i++)
+            {
+                if (typeof(IGH_GeometricGoo).IsAssignableFrom(dObj.MemberDict[key][i].GetType()))
+                {
+                    IGH_GeometricGoo geom = (IGH_GeometricGoo)dObj.MemberDict[key][i];
+                    dObj.MemberDict[key][i] = geom.DuplicateGeometry();
+                }
+            }
         }
 
         return dObj;

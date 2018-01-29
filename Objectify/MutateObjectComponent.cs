@@ -62,21 +62,21 @@ namespace Objectify
                 return;
             }
 
-            this.obj = objGoo.Value.Fresh(true);
-            if (obj.DataCount == 0)
+            this.obj = objGoo.Value.Duplicate();
+            if (obj.MemberDict.Count == 0)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Warning, "The Object is empty");
                 return;
             }
             //making a copy of the object in case mutation fails
-            GeomObject obj_original = obj.Fresh(true);
+            GeomObject obj_original = obj.Duplicate();
 
             MemberSelect param0 = Params.Input[0] as MemberSelect;
-            param0.update(obj);
+            param0.Update(obj);
 
             //now mutating the object
-            List<Object> obj_in = new List<object>();
-            if (!DA.GetDataList<Object>(1, obj_in))
+            List<IGH_Goo> obj_in = new List<IGH_Goo>();
+            if (!DA.GetDataList(1, obj_in))
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, "The member was not replaced: No replacement received");
                 DA.SetData(0, new GeomObjGoo(obj_original));
@@ -91,68 +91,20 @@ namespace Objectify
             }
 
             MemberInput param1 = Params.Input[1] as MemberInput;
-            if (!obj.HasMember(param0.NickName))
+            param1.HasGeometry = typeof(IGH_GeometricGoo).IsAssignableFrom(obj_in[0].GetType());
+            if (!obj.MemberDict.ContainsKey(param0.NickName))
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "The object does not have a member with this name !");
                 return;
             }
 
             //deleting the old member
-            obj.RemoveMember(param0.NickName);
-            param1.isGeometry = false;
-            if (obj_in[0].GetType() == typeof(GH_Number))
-            {
-                //Rhino.RhinoApp.WriteLine("Number !");
-                List<double> nums = new List<double>();
-                DA.GetDataList<double>(1, nums);
-                obj.number.Add(param0.NickName, nums);
-            }
-            else if (obj_in[0].GetType() == typeof(GH_String))
-            {
-                //Rhino.RhinoApp.WriteLine("Text !");
-                List<string> text = new List<string>();
-                DA.GetDataList<string>(1, text);
-                obj.text.Add(param0.NickName, text);
-            }
-            else if (obj_in[0].GetType() == typeof(GH_Vector))
-            {
-                //Rhino.RhinoApp.WriteLine("Vector!");
-                List<GH_Vector> vecs = new List<GH_Vector>();
-                DA.GetDataList<GH_Vector>(1, vecs);
-                obj.vector.Add(param0.NickName, vecs);
-            }
-            else
-            {
-                try
-                {
-                    List<IGH_GeometricGoo> geom = new List<IGH_GeometricGoo>();
-                    if (DA.GetDataList<IGH_GeometricGoo>(1, geom))
-                    {
-                        GH_GeometryGroup grp = new GH_GeometryGroup();
-                        for (int j = 0; j < geom.Count; j++)
-                        {
-                            grp.Objects.Add(geom[j]);
-                        }
-                        obj.data.Add(param0.NickName, grp);
-                        param1.isGeometry = true;
-                    }
-                    else
-                    {
-                        //if we get here then there is something wrong with the data
-                        AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Something is not right with the data you provide");
-                    }
-                }
-                catch (Exception e)
-                {
-                    AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Objectofy does not support this data type");
-                    DA.SetData(0, new GeomObjGoo(obj_original));
-                    return;
-                }
-            }
+            obj.MemberDict.Remove(param0.NickName);
+            obj.MemberDict.Add(param0.NickName, obj_in);
 
             //now updating the visibility and bakability settings
-            this.obj._visibility[param0.NickName] = param1.option["Visible"];
-            this.obj._bakability[param0.NickName] = param1.option["Bakable"];
+            this.obj.Visibility[param0.NickName] = param1.Settings["Visible"];
+            this.obj.Bakability[param0.NickName] = param1.Settings["Bakable"];
 
             DA.SetData(0, new GeomObjGoo(obj));
         }

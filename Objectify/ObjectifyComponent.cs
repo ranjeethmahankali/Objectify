@@ -113,7 +113,7 @@ namespace Objectify
 
             UpdateData(DA);
             // We should now validate the data and warn the user if invalid data is supplied.
-            if (obj.DataCount == 0)
+            if (obj.MemberDict.Count == 0)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, "No data received");
                 //return;
@@ -126,14 +126,11 @@ namespace Objectify
         //this updates the data to the obj of this instance
         private void UpdateData(IGH_DataAccess DA)
         {
-            Dictionary<string, GH_GeometryGroup> dataDict = new Dictionary<string, GH_GeometryGroup>();
-            Dictionary<string, List<double>> numDict = new Dictionary<string, List<double>>();
-            Dictionary<string, List<string>> textDict = new Dictionary<string, List<string>>();
-            Dictionary<string, List<GH_Vector>> vecDict = new Dictionary<string, List<GH_Vector>>();
+            Dictionary<string, List<IGH_Goo>> dataDict = new Dictionary<string, List<IGH_Goo>>();
             for (int i = 0; i < Params.Input.Count; i++)
             {
-                List<Object> obj_in = new List<Object>();//this is for before you decide the type
-                if (!DA.GetDataList<Object>(i, obj_in)) return;
+                List<IGH_Goo> obj_in = new List<IGH_Goo>();//this is for before you decide the type
+                if (!DA.GetDataList(i, obj_in)) return;
                 //here check if all data are of same type within the list of this param
                 if (!validDatatypes(obj_in))
                 {
@@ -141,80 +138,31 @@ namespace Objectify
                     return;
                 }
 
-                //now we try to extract all that data
-                //Rhino.RhinoApp.WriteLine(obj_in[0].GetType().ToString());
-                MemberInput param = Params.Input[i] as MemberInput;
-                param.isGeometry = false;
-                if (obj_in[0].GetType() == typeof(GH_Number))
-                {
-                    //Rhino.RhinoApp.WriteLine("Number !");
-                    List<double> nums = new List<double>();
-                    DA.GetDataList<double>(i, nums);
-                    numDict.Add(param.NickName, nums);
-                }
-                else if (obj_in[0].GetType() == typeof(GH_String))
-                {
-                    //Rhino.RhinoApp.WriteLine("Text !");
-                    List<string> text = new List<string>();
-                    DA.GetDataList<string>(i, text);
-                    textDict.Add(param.NickName, text);
-                }
-                else if (obj_in[0].GetType() == typeof(GH_Vector))
-                {
-                    //Rhino.RhinoApp.WriteLine("Vector!");
-                    List<GH_Vector> vecs = new List<GH_Vector>();
-                    DA.GetDataList<GH_Vector>(i, vecs);
-                    vecDict.Add(param.NickName, vecs);
-                }
-                else
-                {
-                    try
-                    {
-                        List<IGH_GeometricGoo> geom = new List<IGH_GeometricGoo>();
-                        if (DA.GetDataList<IGH_GeometricGoo>(i, geom))
-                        {
-                            GH_GeometryGroup grp = new GH_GeometryGroup();
-                            for (int j = 0; j < geom.Count; j++)
-                            {
-                                grp.Objects.Add(geom[j]);
-                            }
-                            dataDict.Add(param.NickName, grp);
-                            param.isGeometry = true;
-                        }
-                        else
-                        {
-                            //if we get here then there is something wrong with the data
-                            AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Something is not right with the data you provide");
-                        }
-                    }catch(Exception e)
-                    {
-                        AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Objectofy does not support this data type");
-                    }
-                }
+                MemberInput param = (MemberInput)Params.Input[i];
+                param.HasGeometry = typeof(IGH_GeometricGoo).IsAssignableFrom(obj_in[0].GetType());
+
+                dataDict.Add(Params.Input[i].Name, obj_in);
             }
 
             this.obj = new GeomObject(this.NickName, dataDict);
-            this.obj.number = numDict;
-            this.obj.text = textDict;
-            this.obj.vector = vecDict;
             updateSettings();
             //Rhino.RhinoApp.WriteLine(this.obj.dataCount.ToString());
         }
         //update settings
         private void updateSettings()
         {
-            this.obj._bakability.Clear();
-            this.obj._visibility.Clear();
+            this.obj.Bakability.Clear();
+            this.obj.Visibility.Clear();
             for (int i = 0; i < Params.Input.Count; i++)
             {
                 MemberInput param = Params.Input[i] as MemberInput;
-                this.obj._bakability.Add(param.NickName, param.option["Bakable"]);
-                this.obj._visibility.Add(param.NickName, param.option["Visible"]);
+                this.obj.Bakability.Add(param.NickName, param.Settings["Bakable"]);
+                this.obj.Visibility.Add(param.NickName, param.Settings["Visible"]);
             }
         }
 
         //checks if the data in the list is all of the same type
-        public static bool validDatatypes(List<Object> objList)
+        public static bool validDatatypes(List<IGH_Goo> objList)
         {
             if(objList.Count == 0) { return true; }
             for (int i = 1; i < objList.Count; i++)

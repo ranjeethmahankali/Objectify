@@ -46,7 +46,7 @@ namespace Objectify
             get
             {
                 if (this.Value == null) { return BoundingBox.Empty; }
-                GH_GeometryGroup geoGrp = this.Value.GetGeometryGroup("bakable");
+                GH_GeometryGroup geoGrp = this.Value.GetGeometryGroup(GeometryFilter.BAKABLE);
                 if (geoGrp == null) { return BoundingBox.Empty; }
                 return geoGrp.Boundingbox;
             }
@@ -58,7 +58,7 @@ namespace Objectify
         //this is the bounding box
         public override BoundingBox GetBoundingBox(Transform xform)
         {
-            return this.Value.GetGeometryGroup("bakable").GetBoundingBox(xform);
+            return this.Value.GetGeometryGroup(GeometryFilter.BAKABLE).GetBoundingBox(xform);
         }
         //this is the transformations
         public override IGH_GeometricGoo Transform(Transform xform)
@@ -88,11 +88,11 @@ namespace Objectify
         }
         public void DrawViewportMeshes(GH_PreviewMeshArgs args)
         {
-            this.Value.GetGeometryGroup("visible").DrawViewportMeshes(args);
+            this.Value.GetGeometryGroup(GeometryFilter.VISIBLE).DrawViewportMeshes(args);
         }
         public void DrawViewportWires(GH_PreviewWireArgs args)
         {
-            this.Value.GetGeometryGroup("visible").DrawViewportWires(args);
+            this.Value.GetGeometryGroup(GeometryFilter.VISIBLE).DrawViewportWires(args);
         }
         #endregion
 
@@ -100,7 +100,7 @@ namespace Objectify
         public bool BakeGeometry(Rhino.RhinoDoc doc, Rhino.DocObjects.ObjectAttributes att, out Guid obj_guid)
         {
             obj_guid = new Guid();
-            return this.Value.GetGeometryGroup("bakable").BakeGeometry(doc, att, ref obj_guid);
+            return this.Value.GetGeometryGroup(GeometryFilter.BAKABLE).BakeGeometry(doc, att, ref obj_guid);
         }
         #endregion
 
@@ -111,24 +111,21 @@ namespace Objectify
             //we use GH_GeometryGroup as out mediator type
             if (typeof(Q).IsAssignableFrom(typeof(GH_GeometryGroup)))
             {
-                target = (Q)(Object)this.Value.GetGeometryGroup("both");
+                target = (Q)(Object)this.Value.GetGeometryGroup(GeometryFilter.VISIBLE_AND_BAKABLE);
                 //casting was successful
                 return true;
             }
             else if (typeof(Q).IsAssignableFrom(typeof(Dictionary<string, string>)))
             {
                 Dictionary<string, string> castDict = new Dictionary<string, string>();
-                castDict.Add("name", this.Value.name);//the name of the object
+                castDict.Add("name", this.Value.Name);//the name of the object
 
                 //now adding data, numbers, vectors and text
-                castDict.Add("data", GeomObject.SerializeToString(this.Value.data));
-                castDict.Add("number", GeomObject.SerializeToString(this.Value.number));
-                castDict.Add("text", GeomObject.SerializeToString(this.Value.text));
-                castDict.Add("vector", GeomObject.SerializeToString(this.Value.vector));
+                castDict.Add("data", GeomObject.SerializeToString(this.Value.MemberDict));
 
                 //now adding visibility and bakability settings
-                castDict.Add("Visibility", GeomObject.SerializeToString(this.Value._visibility));
-                castDict.Add("Bakability", GeomObject.SerializeToString(this.Value._bakability));
+                castDict.Add("Visibility", GeomObject.SerializeToString(this.Value.Visibility));
+                castDict.Add("Bakability", GeomObject.SerializeToString(this.Value.Bakability));
 
                 target = (Q)(Object)castDict;
                 return true;

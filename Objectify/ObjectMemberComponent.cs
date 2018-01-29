@@ -47,70 +47,31 @@ namespace Objectify
 
             if (!DA.GetData(0, ref objGoo))
             {
-                mainParam.reset(objGoo);
+                mainParam.Reset(objGoo);
                 return;
             }
 
             GeomObject obj = objGoo.Value;
-            if (obj.DataCount == 0)
+            if (obj.MemberDict.Count == 0)
             {
                 //AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Nothing to show");
-                mainParam.reset(objGoo);
+                mainParam.Reset(objGoo);
                 return;
             }
 
-            mainParam.update(obj);
+            mainParam.Update(obj);
             string key = mainParam.NickName;
-            if (obj.data.ContainsKey(key))
+            if (obj.MemberDict.ContainsKey(key))
             {
-                if (obj.data[key].Objects.Count == 1)
+                if (obj.MemberDict[key].Count == 1)
                 {
                     Params.Output[0].Access = GH_ParamAccess.item;
-                    DA.SetData(0, obj.data[key].Objects[0]);
+                    DA.SetData(0, obj.MemberDict[key][0]);
                 }
                 else
                 {
                     Params.Output[0].Access = GH_ParamAccess.list;
-                    DA.SetDataList(0, obj.data[key].Objects);
-                }
-            }
-            else if (obj.number.ContainsKey(key))
-            {
-                if (obj.number[key].Count == 1)
-                {
-                    Params.Output[0].Access = GH_ParamAccess.item;
-                    DA.SetData(0, obj.number[key][0]);
-                }
-                else
-                {
-                    Params.Output[0].Access = GH_ParamAccess.list;
-                    DA.SetDataList(0, obj.number[key]);
-                }
-            }
-            else if (obj.text.ContainsKey(key))
-            {
-                if (obj.text[key].Count == 1)
-                {
-                    Params.Output[0].Access = GH_ParamAccess.item;
-                    DA.SetData(0, obj.text[key][0]);
-                }
-                else
-                {
-                    Params.Output[0].Access = GH_ParamAccess.list;
-                    DA.SetDataList(0, obj.text[key]);
-                }
-            }
-            else if (obj.vector.ContainsKey(key))
-            {
-                if (obj.vector[key].Count == 1)
-                {
-                    Params.Output[0].Access = GH_ParamAccess.item;
-                    DA.SetData(0, obj.vector[key][0]);
-                }
-                else
-                {
-                    Params.Output[0].Access = GH_ParamAccess.list;
-                    DA.SetDataList(0, obj.vector[key]);
+                    DA.SetDataList(0, obj.MemberDict[key]);
                 }
             }
         }

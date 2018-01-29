@@ -16,33 +16,39 @@ namespace Objectify
     //this class is the custom parameter class that shows options in the context menu
     public class MemberSelect : GH_Param<GeomObjGoo>
     {
+        #region fields
+        //properties - options to show in the context menu
+        private List<string> _options;
+        #endregion
+
+        #region properties
+        public List<string> Options { get { return _options; } }
+        #endregion
+
         //constructors
         public MemberSelect(string nickname) :
             base("Member", nickname, "Member", "Data", "Objectify", GH_ParamAccess.item)
         {
-            this.options = new List<string>();
+            _options = new List<string>();
             this.MutableNickName = false;
         }
         public MemberSelect(List<string> keys) :
             this("Member")
         {
-            this.options = keys;
-            this.NickName = options[0];
+            _options = keys;
+            NickName = _options[0];
         }
         public MemberSelect() : this("")
         {
         }
 
-        //properties - options to show in the context menu
-        public List<string> options { get; }
-
         //overriding the options shown in the menu
         public override void AppendAdditionalMenuItems(ToolStripDropDown menu)
         {
             this.Menu_AppendDisconnectWires(menu);
-            for (int i = 0; i < this.options.Count; i++)
+            for (int i = 0; i < this._options.Count; i++)
             {
-                Menu_AppendItem(menu, this.options[i], optionClickHandler, true, (this.options[i] == this.NickName));
+                Menu_AppendItem(menu, this._options[i], optionClickHandler, true, (this._options[i] == this.NickName));
             }
         }
         //this is what happens when the option is clicked
@@ -50,43 +56,31 @@ namespace Objectify
         {
             //do sth when clicked
             ToolStripMenuItem item = sender as ToolStripMenuItem;
-            this.NickName = item.Text;
-            this.OnDisplayExpired(true);
-            this.ExpireSolution(true);
+            NickName = item.Text;
+            OnDisplayExpired(true);
+            ExpireSolution(true);
         }
 
         //this updates the context menu to member names and then sets the current member to the first one if it is unset
-        public void update(GeomObject obj)
+        public void Update(GeomObject obj)
         {
-            this.options.Clear();
-            foreach (string key in obj.data.Keys)
+            this._options.Clear();
+            foreach (string key in obj.MemberDict.Keys)
             {
-                this.options.Add(key);
-            }
-            foreach (string key in obj.number.Keys)
-            {
-                this.options.Add(key);
-            }
-            foreach (string key in obj.text.Keys)
-            {
-                this.options.Add(key);
-            }
-            foreach (string key in obj.vector.Keys)
-            {
-                this.options.Add(key);
+                _options.Add(key);
             }
 
             //if nickname not set then empty string
-            if (this.NickName == "" && options.Count > 0)
+            if (this.NickName == "" && _options.Count > 0)
             {
-                this.NickName = options[0];
+                this.NickName = _options[0];
             }
         }
         //this resets the parameter - clears the context menu options and sets the current member name to empty string
-        public void reset(GeomObjGoo goo)
+        public void Reset(GeomObjGoo goo)
         {
             GeomObject obj = goo.Value;
-            this.update(obj);
+            this.Update(obj);
             this.OnDisplayExpired(true);
         }
 
