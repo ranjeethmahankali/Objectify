@@ -141,7 +141,7 @@ namespace Objectify
                 MemberInput param = (MemberInput)Params.Input[i];
                 param.HasGeometry = typeof(IGH_GeometricGoo).IsAssignableFrom(obj_in[0].GetType());
 
-                dataDict.Add(Params.Input[i].Name, obj_in);
+                dataDict.Add(Params.Input[i].NickName, obj_in);
             }
 
             this.obj = new GeomObject(this.NickName, dataDict);

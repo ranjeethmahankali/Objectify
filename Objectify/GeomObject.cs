@@ -97,7 +97,10 @@ public class GeomObject
         //have to manually recreate the object to avoid references and create a true deep copy
         GeomObject nObj = new GeomObject(this._name);
 
-        foreach (string key in this._memberDict.Keys) { nObj._memberDict.Add(key, this._memberDict[key]); }
+        foreach (string key in this._memberDict.Keys)
+        {
+            nObj._memberDict.Add(key, this._memberDict[key].Select((m) => m.Duplicate()).ToList());
+        }
         foreach (string key in this._visibility.Keys) { nObj._visibility.Add(key, this._visibility[key]); }
         foreach (string key in this._bakability.Keys) { nObj._bakability.Add(key, this._bakability[key]); }
 
