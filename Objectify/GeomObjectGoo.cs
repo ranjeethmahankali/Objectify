@@ -10,7 +10,6 @@ using Grasshopper.Kernel.Types;
 //using Grasshopper.Kernel.Special;
 //using System.Windows.Forms;
 using System.Diagnostics;
-using Newtonsoft.Json;
 using System.Xml.Serialization;
 using System.IO;
 using System.Text;
@@ -73,7 +72,7 @@ namespace Objectify
         //this is for duplication
         public override IGH_GeometricGoo DuplicateGeometry()
         {
-            return new GeomObjGoo(this.Value.DuplicateGeometry());
+            return new GeomObjGoo(this.Value.Duplicate());
         }
         public override string ToString()
         {

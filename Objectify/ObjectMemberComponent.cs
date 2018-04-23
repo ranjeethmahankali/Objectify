@@ -9,29 +9,29 @@ using GH_IO.Serialization;
 //using Grasshopper.Kernel.Special;
 using System.Windows.Forms;
 using System.Diagnostics;
-using Newtonsoft.Json;
 
 namespace Objectify
 {
     //this is the object reader component
-    public class ObjectMember : GH_Component
+    public class ObjectMember : GH_Component, IGH_VariableParameterComponent
     {
         //constructor that calls the base class constructor
         public ObjectMember()
           : base("Object Member", "M",
               "Reads an Object",
-              "Data", "Objectify")
-        {
-            mainParam.Optional = true;
-        }
+              "Data", "Objectify") { }
 
-        //properties - this is the main parameter that I will add inside the registerinputparams function
-        private MemberSelect mainParam = new MemberSelect("");
+        private static MemberSelect GetNewInputParameter(string name = "")
+        {
+            MemberSelect select = new MemberSelect(name);
+            select.Optional = true;
+            return select;
+        }
 
         // Registers all the input parameters for this component.
         protected override void RegisterInputParams(GH_Component.GH_InputParamManager pManager)
         {
-            pManager.AddParameter(mainParam, "", "", "", GH_ParamAccess.item);
+            pManager.AddParameter(GetNewInputParameter(), "", "", "", GH_ParamAccess.item);
         }
 
         // Registers all the output parameters for this component.
@@ -43,43 +43,51 @@ namespace Objectify
         // This is the method that actually does the work.
         protected override void SolveInstance(IGH_DataAccess DA)
         {
-            GeomObjGoo objGoo = new GeomObjGoo();
-
-            if (!DA.GetData(0, ref objGoo))
+            List<IGH_Goo> members = new List<IGH_Goo>();
+            for(int i = 0; i < Params.Input.Count; i++)
             {
-                mainParam.Reset(objGoo);
-                return;
+                GeomObjGoo objGoo = new GeomObjGoo();
+                MemberSelect curParam = Params.Input[i] as MemberSelect;
+                if(curParam == null) { continue; }
+                if (!DA.GetData(i, ref objGoo))
+                {
+                    curParam.Reset(objGoo);
+                    continue;
+                }
+
+                GeomObject obj = objGoo.Value;
+                if (obj.MemberDict.Count == 0)
+                {
+                    //AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Nothing to show");
+                    curParam.Reset(objGoo);
+                    continue;
+                }
+
+                curParam.Update(obj);
+                string key = curParam.NickName;
+                if (obj.MemberDict.ContainsKey(key))
+                {
+                    members.AddRange(obj.MemberDict[key]);
+                }
             }
 
-            GeomObject obj = objGoo.Value;
-            if (obj.MemberDict.Count == 0)
+            //returning as a list or as a single item based how many things need to be returned
+            if(members.Count == 1)
             {
-                //AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Nothing to show");
-                mainParam.Reset(objGoo);
-                return;
+                Params.Output[0].Access = GH_ParamAccess.item;
+                DA.SetData(0, members.First());
             }
-
-            mainParam.Update(obj);
-            string key = mainParam.NickName;
-            if (obj.MemberDict.ContainsKey(key))
+            else
             {
-                if (obj.MemberDict[key].Count == 1)
-                {
-                    Params.Output[0].Access = GH_ParamAccess.item;
-                    DA.SetData(0, obj.MemberDict[key][0]);
-                }
-                else
-                {
-                    Params.Output[0].Access = GH_ParamAccess.list;
-                    DA.SetDataList(0, obj.MemberDict[key]);
-                }
+                Params.Output[0].Access = GH_ParamAccess.item;
+                DA.SetDataList(0, members);
             }
         }
 
         // this function forces GH to recompute the component - bound to change events
         protected virtual void OnParameterChanged(object sender, GH_ParamServerEventArgs e)
         {
-            //mainParam.reset();
+            //curParam.reset();
             ExpireSolution(false);
         }
 
@@ -109,6 +117,38 @@ namespace Objectify
         {
             return base.Read(reader);
         }
+
+        #region IGH_VariableParameterComponenet Implementation
+        public bool CanInsertParameter(GH_ParameterSide side, int index)
+        {
+            return (side == GH_ParameterSide.Input);
+        }
+
+        public bool CanRemoveParameter(GH_ParameterSide side, int index)
+        {
+            return (side == GH_ParameterSide.Input && Params.Input.Count > 1);
+        }
+
+        public IGH_Param CreateParameter(GH_ParameterSide side, int index)
+        {
+            return GetNewInputParameter();
+        }
+
+        public bool DestroyParameter(GH_ParameterSide side, int index)
+        {
+            return true;
+        }
+
+        public void VariableParameterMaintenance()
+        {
+            // This is where you make sure all your parameters are set up correctly.
+            for (int i = 0; i < Params.Input.Count; i++)
+            {
+                IGH_Param param = Params.Input[i];
+                param.Optional = true;
+            }
+        }
+        #endregion
 
         //dont change this Guid after publishing the plugin
         public override Guid ComponentGuid

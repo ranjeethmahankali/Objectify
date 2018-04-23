@@ -10,7 +10,6 @@ using Grasshopper.Kernel.Types;
 //using Grasshopper.Kernel.Special;
 //using System.Windows.Forms;
 using System.Diagnostics;
-using Newtonsoft.Json;
 using System.Xml.Serialization;
 using System.IO;
 using System.Text;
@@ -183,25 +182,6 @@ public class GeomObject
         }
 
         return mObj;
-    }
-    //this is for duplication
-    public GeomObject DuplicateGeometry()
-    {
-        GeomObject dObj = Duplicate();
-        foreach (string key in dObj.MemberDict.Keys)
-        {
-            List<IGH_Goo> newData = new List<IGH_Goo>();
-            for (int i = 0; i < dObj.MemberDict[key].Count; i++)
-            {
-                if (typeof(IGH_GeometricGoo).IsAssignableFrom(dObj.MemberDict[key][i].GetType()))
-                {
-                    IGH_GeometricGoo geom = (IGH_GeometricGoo)dObj.MemberDict[key][i];
-                    dObj.MemberDict[key][i] = geom.DuplicateGeometry();
-                }
-            }
-        }
-
-        return dObj;
     }
     #endregion    
 }

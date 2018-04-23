@@ -9,7 +9,6 @@ using GH_IO.Serialization;
 //using Grasshopper.Kernel.Special;
 using System.Windows.Forms;
 using System.Diagnostics;
-using Newtonsoft.Json;
 
 namespace Objectify
 {
