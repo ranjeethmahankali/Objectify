@@ -21,13 +21,10 @@ namespace Objectify
               "Creates an object out of the input data",
               "Data", "Objectify")
         {
-            obj = new GeomObject(this.NickName);
             Params.ParameterChanged += new GH_ComponentParamServer.ParameterChangedEventHandler(OnParameterChanged);
         }
 
-        //this is the geomObject which will hold the data being outputted by this component
-        private GeomObject obj{get; set;}
-        private List<string> allKeys
+        private List<string> AllInputNames
         {
             get
             {
@@ -104,13 +101,14 @@ namespace Objectify
         protected override void SolveInstance(IGH_DataAccess DA)
         {
             //now we check that all the member names are unique
-            if (allKeys.Distinct().Count() != allKeys.Count)
+            if (AllInputNames.Distinct().Count() != AllInputNames.Count)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "Member names cannot be repeated !");
                 return;
             }
 
-            UpdateData(DA);
+            GeomObject obj = null;
+            UpdateData(DA, ref obj);
             // We should now validate the data and warn the user if invalid data is supplied.
             if (obj.MemberDict.Count == 0)
             {
@@ -123,7 +121,7 @@ namespace Objectify
             //DA.SetDataList(1, obj.getGeometry());
         }
         //this updates the data to the obj of this instance
-        private void UpdateData(IGH_DataAccess DA)
+        private void UpdateData(IGH_DataAccess DA, ref GeomObject obj)
         {
             Dictionary<string, List<IGH_Goo>> dataDict = new Dictionary<string, List<IGH_Goo>>();
             for (int i = 0; i < Params.Input.Count; i++)
@@ -131,7 +129,7 @@ namespace Objectify
                 List<IGH_Goo> obj_in = new List<IGH_Goo>();//this is for before you decide the type
                 if (!DA.GetDataList(i, obj_in)) return;
                 //here check if all data are of same type within the list of this param
-                if (!validDatatypes(obj_in))
+                if (!DataTypesAreValid(obj_in))
                 {
                     AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "All data in an object member should be of the same type!");
                     return;
@@ -143,25 +141,24 @@ namespace Objectify
                 dataDict.Add(Params.Input[i].NickName, obj_in);
             }
 
-            this.obj = new GeomObject(this.NickName, dataDict);
-            updateSettings();
-            //Rhino.RhinoApp.WriteLine(this.obj.dataCount.ToString());
+            obj = new GeomObject(this.NickName, dataDict);
+            UpdateSettings(ref obj);
         }
         //update settings
-        private void updateSettings()
+        private void UpdateSettings(ref GeomObject obj)
         {
-            this.obj.Bakability.Clear();
-            this.obj.Visibility.Clear();
+            obj.Bakability.Clear();
+            obj.Visibility.Clear();
             for (int i = 0; i < Params.Input.Count; i++)
             {
                 MemberInput param = Params.Input[i] as MemberInput;
-                this.obj.Bakability.Add(param.NickName, param.Settings["Bakable"]);
-                this.obj.Visibility.Add(param.NickName, param.Settings["Visible"]);
+                obj.Bakability.Add(param.NickName, param.Settings["Bakable"]);
+                obj.Visibility.Add(param.NickName, param.Settings["Visible"]);
             }
         }
 
         //checks if the data in the list is all of the same type
-        public static bool validDatatypes(List<IGH_Goo> objList)
+        public static bool DataTypesAreValid(List<IGH_Goo> objList)
         {
             if(objList.Count == 0) { return true; }
             for (int i = 1; i < objList.Count; i++)

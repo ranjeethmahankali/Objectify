@@ -83,7 +83,7 @@ namespace Objectify
             }
             //Debug.WriteLine(obj_in[0] == null);
             //here check if all data are of same type within the list of this param
-            if (!ObjectifyComponent.validDatatypes(obj_in))
+            if (!ObjectifyComponent.DataTypesAreValid(obj_in))
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Error, "All data in an object member should be of the same type!");
                 return;

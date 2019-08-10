@@ -37,7 +37,7 @@ namespace Objectify
         public MemberInput() :
             base("Member Input", "Label", "Input data", "Data", "Objectify", GH_ParamAccess.list)
         {
-            this.DataMapping = GH_DataMapping.Flatten;
+            // this.DataMapping = GH_DataMapping.Flatten;
             this.Optional = true;
             this.Access = GH_ParamAccess.list;
 
@@ -66,11 +66,11 @@ namespace Objectify
             this.Menu_AppendDisconnectWires(menu);
             foreach (string opName in _settings.Keys)
             {
-                Menu_AppendItem(menu, opName, optionClickHandler, _hasGeometry, _hasGeometry && _settings[opName]);
+                Menu_AppendItem(menu, opName, OptionClickHandler, _hasGeometry, _hasGeometry && _settings[opName]);
             }
         }
         //this is what happens when the option is clicked
-        private void optionClickHandler(Object sender, EventArgs e)
+        private void OptionClickHandler(Object sender, EventArgs e)
         {
             //do sth when clicked
             ToolStripMenuItem item = sender as ToolStripMenuItem;
