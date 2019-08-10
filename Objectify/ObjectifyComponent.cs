@@ -110,10 +110,10 @@ namespace Objectify
             GeomObject obj = null;
             UpdateData(DA, ref obj);
             // We should now validate the data and warn the user if invalid data is supplied.
-            if (obj.MemberDict.Count == 0)
+            if ((obj?.MemberDict?.Count??0) == 0)
             {
                 AddRuntimeMessage(GH_RuntimeMessageLevel.Remark, "No data received");
-                //return;
+                return;
             }
 
             // Finally assign the spiral to the output parameter.

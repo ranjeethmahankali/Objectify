@@ -63,7 +63,8 @@ namespace Objectify
         //overriding the options shown in the menu
         public override void AppendAdditionalMenuItems(ToolStripDropDown menu)
         {
-            this.Menu_AppendDisconnectWires(menu);
+            // this.Menu_AppendDisconnectWires(menu);
+            base.AppendAdditionalMenuItems(menu);
             foreach (string opName in _settings.Keys)
             {
                 Menu_AppendItem(menu, opName, OptionClickHandler, _hasGeometry, _hasGeometry && _settings[opName]);
